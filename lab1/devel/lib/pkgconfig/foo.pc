@@ -1,0 +1,8 @@
+prefix=/home/cc/ee106a/fa15/class/ee106a-ab/ros_workspace/lab1/devel
+
+Name: foo
+Description: Description of foo
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/cc/ee106a/fa15/class/ee106a-ab/ros_workspace/lab1/devel/lib 
+Requires: 
