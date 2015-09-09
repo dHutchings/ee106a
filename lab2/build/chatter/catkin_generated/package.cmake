@@ -1,0 +1,7 @@
+set(_CATKIN_CURRENT_PACKAGE "chatter")
+set(chatter_MAINTAINER "ee125-ta <ee125-ta@todo.todo>")
+set(chatter_DEPRECATED "")
+set(chatter_VERSION "0.0.0")
+set(chatter_BUILD_DEPENDS "std_msgs" "rospy")
+set(chatter_RUN_DEPENDS "std_msgs" "rospy")
+set(chatter_BUILDTOOL_DEPENDS "catkin")
