@@ -3,6 +3,8 @@
 #Import the dependencies as described in example_pub.py
 import rospy
 from std_msgs.msg import String
+from my_chatter.msg import TimestampString
+
 
 #Define the callback method which is called whenever this node receives a 
 #message on its subscribed topic. The received message is passed as the 
@@ -10,7 +12,7 @@ from std_msgs.msg import String
 def callback(message):
 
     #Print the contents of the message to the console
-    print(rospy.get_name() + ": I heard %s" % message.data)
+    print(rospy.get_name() + ": I heard %s" % message.userInput + " at time %s" %message.timestamp)
 
 #Define the method which contains the node's main functionality
 def listener():
@@ -23,10 +25,9 @@ def listener():
     rospy.init_node('listener', anonymous=True)
 
     #Create a new instance of the rospy.Subscriber object which we can 
-    #use to receive messages of type std_msgs/String from the topic /chatter_talk.
     #Whenever a new message is received, the method callback() will be called
     #with the received message as its first argument.
-    rospy.Subscriber("chatter_talk", String, callback)
+    rospy.Subscriber("user_messages", TimestampString, callback)
 
 
     #Wait for messages to arrive on the subscribed topics, and exit the node

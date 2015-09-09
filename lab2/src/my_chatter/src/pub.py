@@ -10,6 +10,7 @@ import rospy
 #Import the String message type from the /msg directory of
 #the std_msgs package.
 from std_msgs.msg import String
+from my_chatter.msg import TimestampString
 
 #Define the method which contains the main functionality of the node.
 def talker():
@@ -20,8 +21,8 @@ def talker():
 
   #Create an instance of the rospy.Publisher object which we can 
   #use to publish messages to a topic. This publisher publishes 
-  #messages of type std_msgs/String to the topic /chatter_talk
-  pub = rospy.Publisher('chatter_talk', String, queue_size=10)
+  #messages of type TimestampString to the topic /user_messages
+  pub = rospy.Publisher('user_messages', TimestampString, queue_size=10)
   
   # Create a timer object that will sleep long enough to result in
   # a 10Hz publishing rate
@@ -29,11 +30,15 @@ def talker():
 
   # Loop until the node is killed with Ctrl-C
   while not rospy.is_shutdown():
-    # Construct a string that we want to publish
-    pub_string = "hello world %s"%rospy.get_time()
+    print("Please enter a line of text and press <Enter>:")
+    s = raw_input('-->')
     
-    # Publish our string to the 'chatter_talk' topic
-    pub.publish(pub_string)
+    # Construct an array that we want to publish
+    #include s
+    data = [s , rospy.get_time()]
+    
+    # Publish our data to the 'chatter_talk' topic
+    pub.publish(s,rospy.get_time())
     
     # Use our rate object to sleep until it is time to publish again
     r.sleep()
