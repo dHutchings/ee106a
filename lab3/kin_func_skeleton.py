@@ -276,7 +276,14 @@ def prod_exp(xi, theta):
     if not xi.shape[0] == 6:
         raise TypeError('xi must be a 6xN')
 
-    #YOUR CODE HERE
+    g = np.identity(4)
+    for i in range(0,len(theta)):
+        twist = xi[:,i]
+        th = theta[i]
+        print(twist)
+        print(th)
+        mat = homog_3d(twist,th)
+        g = np.dot(g,mat)
 
 
 
