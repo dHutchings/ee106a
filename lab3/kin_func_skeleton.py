@@ -217,7 +217,48 @@ def homog_3d(xi, theta):
 
     #YOUR CODE HERE
 
-    g = None
+    omega = np.array([xi[3:6]])
+    omega_hat = skew_3d(xi[3:6])    
+    omega_T = np.transpose(omega)
+    v = np.array([xi[0:3]])
+    
+    rot_mat = rotation_3d(xi[3:6],theta)    
+    omega_mag = np.linalg.norm(omega,2)
+
+    I = np.identity(3)
+
+    #print("omega " + str(omega))
+    #print("omeg hat " + str(omega_hat))
+    #print("v " + str(v))
+
+    #print("w*wt")
+    #print(str(np.dot(omega,np.transpose(omega))))
+
+
+    #(eye(3) - rot_mat)
+
+    #print("test here")
+    #print(I - rot_mat)
+
+    #print(v)
+    #print(np.transpose(v))
+
+    #print(np.dot(omega_hat,v))
+
+
+    term1 = np.dot( (I-rot_mat) ,( np.dot(omega_hat,np.transpose(v)) ) )
+    term2 = theta*np.dot(np.dot(omega_T,omega),np.transpose(v))
+    term = (term1+term2)/(omega_mag**2)
+
+    g = np.zeros((4,4))
+
+    g[0:3,0:3] = rot_mat[0:3,0:3]
+    g[0:3,3] = np.transpose(term[0:3])
+    g[3,3] = 1
+
+
+    #print(g)
+
     return g
 
 def prod_exp(xi, theta):
@@ -237,7 +278,7 @@ def prod_exp(xi, theta):
 
     #YOUR CODE HERE
 
-    for i = 0:length(theta)
+
 
     return g
 
