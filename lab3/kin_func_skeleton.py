@@ -103,7 +103,7 @@ def hat_2d(xi):
         raise TypeError('omega must be a 3-vector')
 
     #YOUR CODE HERE
-    xi_hat = np.zeros(3,3)
+    xi_hat = np.zeros((3,3))
     xi_hat[0,1] = -xi[2]
     xi_hat[0,2] = xi[0]
     xi_hat[1,0] = xi[2]
@@ -124,6 +124,24 @@ def hat_3d(xi):
         raise TypeError('xi must be a 6-vector')
 
     #YOUR CODE HERE
+    #print(xi)
+    #print(xi[2:5])
+    
+
+    w_hat = skew_3d(xi[3:6])
+    v = xi[0:3]
+
+
+    xi_hat = np.zeros((4,4))
+    #print("Xi")
+    #print(xi_hat)
+
+    #print("w_hat")
+    #print(w_hat)
+
+    xi_hat[0:3,0:3] = w_hat[0:3,0:3]
+    xi_hat[0:3,3] = v
+    #print(xi_hat)
 
 
     return xi_hat
@@ -144,7 +162,40 @@ def homog_2d(xi, theta):
         raise TypeError('xi must be a 3-vector')
 
     #YOUR CODE HERE
+    w = xi[2]
+    R = rotation_2d(w*theta) #xi[2] = z, theta=theta
 
+    p = np.zeros((2,2))
+    
+    p[0,0] = 1-np.cos(w*theta)
+    p[0,1] = np.sin(w*theta)
+    p[1,0] = np.sin(w*theta)
+    p[1,1] = np.cos(w*theta)
+
+
+    new = np.zeros((2,2))
+    new[0,1] = -1
+    new[1,0] = 1
+
+
+    p = np.dot(p,new)
+
+    vs = np.zeros((2,1))
+    vs[0,0] = xi[0]
+    vs[1,0] = xi[1]
+    print(vs)
+    vs = vs/w
+    print(vs)
+
+    p = np.dot(p,vs)
+
+    g = np.zeros((3,3))
+
+    g[0:2,0:2] = R[0:2,0:2]
+    g[0:2,2] = p[0,0:2]
+    g[2,2] = 1
+
+    print(g)
     return g
 
 def homog_3d(xi, theta):
@@ -247,7 +298,7 @@ if __name__ == "__main__":
     arg1 = np.array([2.0, 1, 3])
     arg2 = 0.658
     func_args = (arg1,arg2)
-    ret_desired = array([[-0.3924, -0.9198,  0.1491],
+    ret_desired = np.array([[-0.3924, -0.9198,  0.1491],
                          [ 0.9198, -0.3924,  1.2348],
                          [ 0.    ,  0.    ,  1.    ]])
     array_func_test(homog_2d, func_args, ret_desired)
