@@ -163,39 +163,41 @@ def homog_2d(xi, theta):
 
     #YOUR CODE HERE
     w = xi[2]
+    
     R = rotation_2d(w*theta) #xi[2] = z, theta=theta
 
     p = np.zeros((2,2))
-    
-    p[0,0] = 1-np.cos(w*theta)
+
+    #first term of p    
+    p[0,0] = 1 - np.cos(w*theta)
     p[0,1] = np.sin(w*theta)
-    p[1,0] = np.sin(w*theta)
-    p[1,1] = np.cos(w*theta)
+    p[1,0] = -np.sin(w*theta)
+    p[1,1] = 1-np.cos(w*theta)
 
-
+    #matrix that looks like flip of the identity with sign changes
     new = np.zeros((2,2))
     new[0,1] = -1
     new[1,0] = 1
 
-
+    #computer first multiplication
     p = np.dot(p,new)
 
+    #produce the matrix vx/w,vy/w
     vs = np.zeros((2,1))
-    vs[0,0] = xi[0]
-    vs[1,0] = xi[1]
-    print(vs)
-    vs = vs/w
-    print(vs)
+    vs[0,0] = xi[0]/w
+    vs[1,0] = xi[1]/w
+
 
     p = np.dot(p,vs)
+    #perform last multiplication
 
+    
+    #combine the R,P, and 1 matricies into g
     g = np.zeros((3,3))
-
     g[0:2,0:2] = R[0:2,0:2]
-    g[0:2,2] = p[0,0:2]
+    g[0:2,2] = p[0:2,0]
     g[2,2] = 1
 
-    print(g)
     return g
 
 def homog_3d(xi, theta):
@@ -215,6 +217,7 @@ def homog_3d(xi, theta):
 
     #YOUR CODE HERE
 
+    g = None
     return g
 
 def prod_exp(xi, theta):
@@ -233,6 +236,8 @@ def prod_exp(xi, theta):
         raise TypeError('xi must be a 6xN')
 
     #YOUR CODE HERE
+
+    for i = 0:length(theta)
 
     return g
 
