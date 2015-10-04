@@ -280,8 +280,8 @@ def prod_exp(xi, theta):
     for i in range(0,len(theta)):
         twist = xi[:,i]
         th = theta[i]
-        print(twist)
-        print(th)
+        #print(twist)
+        #print(th)
         mat = homog_3d(twist,th)
         g = np.dot(g,mat)
 
