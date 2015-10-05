@@ -1,0 +1,7 @@
+set(_CATKIN_CURRENT_PACKAGE "ik_ex")
+set(ik_ex_MAINTAINER "ee106 <ee106@todo.todo>")
+set(ik_ex_DEPRECATED "")
+set(ik_ex_VERSION "0.0.0")
+set(ik_ex_BUILD_DEPENDS )
+set(ik_ex_RUN_DEPENDS )
+set(ik_ex_BUILDTOOL_DEPENDS "catkin")

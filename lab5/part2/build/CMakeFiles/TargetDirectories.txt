@@ -1,0 +1,8 @@
+/home/ee106/ros_ws/Doug/build/ik_ex/CMakeFiles/_catkin_empty_exported_target.dir
+/home/ee106/ros_ws/Doug/build/CMakeFiles/clean_test_results.dir
+/home/ee106/ros_ws/Doug/build/CMakeFiles/download_extra_data.dir
+/home/ee106/ros_ws/Doug/build/CMakeFiles/doxygen.dir
+/home/ee106/ros_ws/Doug/build/gtest/CMakeFiles/gtest.dir
+/home/ee106/ros_ws/Doug/build/gtest/CMakeFiles/gtest_main.dir
+/home/ee106/ros_ws/Doug/build/CMakeFiles/run_tests.dir
+/home/ee106/ros_ws/Doug/build/CMakeFiles/tests.dir
