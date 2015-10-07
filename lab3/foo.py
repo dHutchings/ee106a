@@ -55,17 +55,21 @@ baxt_rot = skeleton.rotation_3d(baxt_w_norm,baxt_theta)
 baxt_homo_transform[0:3,0:3] = baxt_rot[0:3,0:3]
 baxt_homo_transform[3,3] = 1
 
-print("What we think what Baxter thinks the homogenous transform is")
-print(baxt_homo_transform)
+#print("What we think what Baxter thinks the homogenous transform is")
+#print(baxt_homo_transform)
 
 
 
 def task1(angles):
     return skeleton.prod_exp(t,angles)
 
-I = np.eye(4)
-I[0:3,3] = q_hand
-print(I)
+def task2(angles):
+    np_angles = np.array(angles)
+    print(np_angles)
+    I = np.eye(4)
+    I[0:3,3] = q_hand
+    return np.dot(task1(np_angles),I)
 
-print("What we think the homogenous transform is based on the angles")
-print(np.dot(task1(tested_theta),I))
+
+#print("What we think the homogenous transform is based on the angles")
+#print()
