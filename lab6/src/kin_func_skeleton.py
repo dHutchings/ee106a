@@ -17,8 +17,7 @@ the Ubuntu+ROS VM on the course page to complete this portion of the homework.
 """
 
 import numpy as np
-import scipy as sp
-from scipy import linalg
+#import scipy as sp
 
 np.set_printoptions(precision=4,suppress=True)
 
@@ -32,9 +31,18 @@ def skew_3d(omega):
     Returns:
     omega_hat - (3,3) ndarray: the corresponding skew symmetric matrix
     """
+
+
     if not omega.shape == (3,):
         raise TypeError('omega must be a 3-vector')
     
+    omega_hat = np.zeros((3,3))
+    omega_hat[0,1] = -omega[2]
+    omega_hat[0,2] = omega[1]
+    omega_hat[1,0] = omega[2]
+    omega_hat[1,2] = -omega[0]
+    omega_hat[2,0] = -omega[1]
+    omega_hat[2,1] = omega[0]
     #YOUR CODE HERE
 
     return omega_hat
@@ -50,7 +58,12 @@ def rotation_2d(theta):
     rot - (3,3) ndarray: the resulting rotation matrix
     """
     
-    #YOUR CODE HERE
+    rot = np.zeros((2,2))
+    rot[0,0] = np.cos(theta)
+    rot[0,1] = - np.sin(theta)
+    rot[1,0] = np.sin(theta)
+    rot[1,1] = np.cos(theta)
+
 
     return rot
 
@@ -69,7 +82,11 @@ def rotation_3d(omega, theta):
         raise TypeError('omega must be a 3-vector')
     
     #YOUR CODE HERE
+    rot = np.eye(3) #identity matrix
 
+    rot = rot + skew_3d(omega)/np.linalg.norm(omega)*np.sin(np.linalg.norm(omega)*theta)  #second term here
+
+    rot = rot + np.linalg.matrix_power(skew_3d(omega),2)/(np.linalg.norm(omega)**2)*(1-np.cos(np.linalg.norm(omega)*theta))
     return rot
 
 def hat_2d(xi):
@@ -86,7 +103,11 @@ def hat_2d(xi):
         raise TypeError('omega must be a 3-vector')
 
     #YOUR CODE HERE
-
+    xi_hat = np.zeros((3,3))
+    xi_hat[0,1] = -xi[2]
+    xi_hat[0,2] = xi[0]
+    xi_hat[1,0] = xi[2]
+    xi_hat[1,2] = xi[1]
     return xi_hat
 
 def hat_3d(xi):
@@ -103,6 +124,25 @@ def hat_3d(xi):
         raise TypeError('xi must be a 6-vector')
 
     #YOUR CODE HERE
+    #print(xi)
+    #print(xi[2:5])
+    
+
+    w_hat = skew_3d(xi[3:6])
+    v = xi[0:3]
+
+
+    xi_hat = np.zeros((4,4))
+    #print("Xi")
+    #print(xi_hat)
+
+    #print("w_hat")
+    #print(w_hat)
+
+    xi_hat[0:3,0:3] = w_hat[0:3,0:3]
+    xi_hat[0:3,3] = v
+    #print(xi_hat)
+
 
     return xi_hat
 
@@ -122,6 +162,41 @@ def homog_2d(xi, theta):
         raise TypeError('xi must be a 3-vector')
 
     #YOUR CODE HERE
+    w = xi[2]
+    
+    R = rotation_2d(w*theta) #xi[2] = z, theta=theta
+
+    p = np.zeros((2,2))
+
+    #first term of p    
+    p[0,0] = 1 - np.cos(w*theta)
+    p[0,1] = np.sin(w*theta)
+    p[1,0] = -np.sin(w*theta)
+    p[1,1] = 1-np.cos(w*theta)
+
+    #matrix that looks like flip of the identity with sign changes
+    new = np.zeros((2,2))
+    new[0,1] = -1
+    new[1,0] = 1
+
+    #computer first multiplication
+    p = np.dot(p,new)
+
+    #produce the matrix vx/w,vy/w
+    vs = np.zeros((2,1))
+    vs[0,0] = xi[0]/w
+    vs[1,0] = xi[1]/w
+
+
+    p = np.dot(p,vs)
+    #perform last multiplication
+
+    
+    #combine the R,P, and 1 matricies into g
+    g = np.zeros((3,3))
+    g[0:2,0:2] = R[0:2,0:2]
+    g[0:2,2] = p[0:2,0]
+    g[2,2] = 1
 
     return g
 
@@ -142,6 +217,48 @@ def homog_3d(xi, theta):
 
     #YOUR CODE HERE
 
+    omega = np.array([xi[3:6]])
+    omega_hat = skew_3d(xi[3:6])    
+    omega_T = np.transpose(omega)
+    v = np.array([xi[0:3]])
+    
+    rot_mat = rotation_3d(xi[3:6],theta)    
+    omega_mag = np.linalg.norm(omega,2)
+
+    I = np.identity(3)
+
+    #print("omega " + str(omega))
+    #print("omeg hat " + str(omega_hat))
+    #print("v " + str(v))
+
+    #print("w*wt")
+    #print(str(np.dot(omega,np.transpose(omega))))
+
+
+    #(eye(3) - rot_mat)
+
+    #print("test here")
+    #print(I - rot_mat)
+
+    #print(v)
+    #print(np.transpose(v))
+
+    #print(np.dot(omega_hat,v))
+
+
+    term1 = np.dot( (I-rot_mat) ,( np.dot(omega_hat,np.transpose(v)) ) )
+    term2 = theta*np.dot(np.dot(omega_T,omega),np.transpose(v))
+    term = (term1+term2)/(omega_mag**2)
+
+    g = np.zeros((4,4))
+
+    g[0:3,0:3] = rot_mat[0:3,0:3]
+    g[0:3,3] = np.transpose(term[0:3])
+    g[3,3] = 1
+
+
+    #print(g)
+
     return g
 
 def prod_exp(xi, theta):
@@ -159,7 +276,16 @@ def prod_exp(xi, theta):
     if not xi.shape[0] == 6:
         raise TypeError('xi must be a 6xN')
 
-    #YOUR CODE HERE
+    g = np.identity(4)
+    for i in range(0,len(theta)):
+        twist = xi[:,i]
+        th = theta[i]
+        #print(twist)
+        #print(th)
+        mat = homog_3d(twist,th)
+        g = np.dot(g,mat)
+
+
 
     return g
 
@@ -208,8 +334,8 @@ if __name__ == "__main__":
     arg1 = np.array([2.0, 1, 3])
     func_args = (arg1,)
     ret_desired = np.array([[ 0., -3.,  2.],
-                            [ 3.,  0.,  1.],
-                            [ 0.,  0.,  0.]])
+                         [ 3.,  0.,  1.],
+                         [ 0.,  0.,  0.]])
     array_func_test(hat_2d, func_args, ret_desired)
 
     #Test hat_3d()
@@ -226,8 +352,8 @@ if __name__ == "__main__":
     arg2 = 0.658
     func_args = (arg1,arg2)
     ret_desired = np.array([[-0.3924, -0.9198,  0.1491],
-                            [ 0.9198, -0.3924,  1.2348],
-                            [ 0.    ,  0.    ,  1.    ]])
+                         [ 0.9198, -0.3924,  1.2348],
+                         [ 0.    ,  0.    ,  1.    ]])
     array_func_test(homog_2d, func_args, ret_desired)
 
     #Test homog_3d()
