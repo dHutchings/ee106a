@@ -37,6 +37,18 @@ def quaternion_to_exp(rot):
     theta - a scalar
     """
     #YOUR CODE HERE
+
+
+    q_o = rot[-1]
+    theta = 2*np.arccos(q_o)
+
+    if(theta == 0):
+        w = np.zeros(3)
+    else:
+        q = rot[0:3]
+        w = q/np.sin(theta/2)
+        omega = w
+
     return (omega, theta)
     
 def create_rbt(omega, theta, trans):
@@ -53,6 +65,22 @@ def create_rbt(omega, theta, trans):
     g - (4,4) ndarray : the rigid body transform
     """
     #YOUR CODE HERE
+
+    R = kfs.rotation_3d(omega,theta)
+
+    g = np.zeros([4,4])
+
+    g[0:3,0:3] = R
+    #rotation matrix
+
+    g[0,3] = trans[0]
+    g[1,3] = trans[1]
+    g[2,3] = trans[2]
+    #three elements of the trans vector, use specific elements since trans doesn't transpose due to not being the right kind of nd array
+
+    g[3,3] = 1
+    #bottom right element to 1
+
     return g
     
 def compute_gab(g0a,g0b):
@@ -68,6 +96,11 @@ def compute_gab(g0a,g0b):
     gab - (4,4) ndarray : the rigid body transform
     """
     #YOUR CODE HERE
+
+
+    #inverse of g0a is ga0.  then, the transform is from ga0 * g0b = gab.
+    return np.dot(np.linalg.inv(g0a),g0b) 
+
     return gab
     
 def find_omega_theta(R):
@@ -81,6 +114,17 @@ def find_omega_theta(R):
     omega - (3,) ndarray : the axis you want to rotate about
     theta - scalar value
     """
+
+    theta = np.arccos(  (np.trace(R) -  1 )/2)
+
+    omega = np.ndarray(3)
+    omega[0] = R[2,1] - R[1,2]
+    omega[1] = R[0,2] - R[2,0]
+    omega[2] = R[1,0] - R[0,1]
+
+
+    omega = (1/(2*np.sin(theta))) *omega
+
     #YOUR CODE HERE
     return (omega, theta)
     
@@ -96,6 +140,17 @@ def find_v(omega, theta, trans):
     Returns:
     v - (3,1) ndarray : the linear velocity term of the twist (v,omega)
     """    
+
+    trans_transposed = np.array([ [trans[0]] , [trans[1]] , [trans[2]] ])
+
+    omega_transposed = np.array([ [omega[0]] , [omega[1]] , [omega[2]] ])
+    omega_new = np.transpose(omega_transposed)
+    #computer omega_transposed, omega_new, that can both be fed into np.dot
+
+    #NOTE: order in the np.dot(omega_transposes,omega_new) is backwards because the omega that's given to us it a row, not a collum, vector
+    A = ( np.dot((np.eye(3) - kfs.rotation_3d(omega,theta))    , kfs.skew_3d(omega))  + np.dot(omega_transposed,omega_new  )*theta   )
+    v = np.dot(np.linalg.inv(A),trans_transposed)
+
     #YOUR CODE HERE
     return v
     
