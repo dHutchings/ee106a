@@ -1,0 +1,2 @@
+ik_ex
+-DCATKIN_DEVEL_PREFIX=/home/ee106/ros_ws/Doug/devel -DCMAKE_INSTALL_PREFIX=/home/ee106/ros_ws/Doug/install -G Unix Makefiles

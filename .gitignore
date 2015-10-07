@@ -3,3 +3,5 @@
 */.catkin_workspace
 *~
 *.DS_Store
+*.pyc
+*.pdf
