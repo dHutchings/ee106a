@@ -1,7 +1,0 @@
-set(_CATKIN_CURRENT_PACKAGE "foo")
-set(foo_MAINTAINER "ee106a-ab <ee106a-ab@todo.todo>")
-set(foo_DEPRECATED "")
-set(foo_VERSION "0.0.0")
-set(foo_BUILD_DEPENDS )
-set(foo_RUN_DEPENDS )
-set(foo_BUILDTOOL_DEPENDS "catkin")

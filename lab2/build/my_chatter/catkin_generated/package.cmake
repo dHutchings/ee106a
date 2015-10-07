@@ -1,7 +1,0 @@
-set(_CATKIN_CURRENT_PACKAGE "my_chatter")
-set(my_chatter_MAINTAINER "ee106a-ab <ee106a-ab@todo.todo>")
-set(my_chatter_DEPRECATED "")
-set(my_chatter_VERSION "0.0.0")
-set(my_chatter_BUILD_DEPENDS "message_generation" "roscpp" "rospy" "std_msgs")
-set(my_chatter_RUN_DEPENDS "message_runtime" "roscpp" "rospy" "std_msgs")
-set(my_chatter_BUILDTOOL_DEPENDS "catkin")

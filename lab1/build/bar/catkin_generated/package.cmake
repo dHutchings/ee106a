@@ -1,7 +1,0 @@
-set(_CATKIN_CURRENT_PACKAGE "bar")
-set(bar_MAINTAINER "ee106a-ab <ee106a-ab@todo.todo>")
-set(bar_DEPRECATED "")
-set(bar_VERSION "0.0.0")
-set(bar_BUILD_DEPENDS "roscpp" "rospy" "std_msgs")
-set(bar_RUN_DEPENDS "roscpp" "rospy" "std_msgs")
-set(bar_BUILDTOOL_DEPENDS "catkin")
