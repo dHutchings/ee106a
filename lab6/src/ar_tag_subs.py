@@ -8,6 +8,10 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Transform, Vector3
 import kin_func_skeleton as kfs
 import exp_quat_func as eqf
+import os
+
+print(os.path.basename(root))
+from srv.NuSrv.srv import *
 
 listener = None
 
@@ -59,72 +63,52 @@ def compute_twist(rbt):
 
 if __name__=='__main__':
     rospy.init_node('ar_tags_subs')
-    if len(sys.argv) < 4:
-        print('Use: ar_tag_subs.py [ AR tag number ] [ AR tag number ] [ AR tag number ] ')
+    if len(sys.argv) < 2:
+        print('Use: ar_tag_subs.py [Zumys AR tag number ] ')
         sys.exit()
     ar_tags = {}
-    ar_tags['ar0'] = 'ar_marker_' + sys.argv[1]
-    ar_tags['ar1'] = 'ar_marker_' + sys.argv[2]
-    ar_tags['arZ'] = 'ar_marker_' + sys.argv[3]
+    ar_tags['arZ'] = 'ar_marker_' + sys.argv[1]
 
-    print(ar_tags)
-
-    print(ar_tags['ar0'])
 
     listener = tf.TransformListener()
 
     rate = rospy.Rate(10.0)
     while not rospy.is_shutdown():
-        #print(dir(listener))
-        #print(listener.allFramesAsDot())
 
-        #print(listener.frameExists(ar_tags['arZ']))        
-
-        #print("AR TAGS EXISTANCE IS AS FOLLOWS: ")
-        #print(listener.frameExists(ar_tags['ar0']))
-        #print(listener.frameExists(ar_tags['ar1']))
-        #print(listener.frameExists(ar_tags['arZ']))
-
-        try:
-            (trans, rot) = listener.lookupTransform(ar_tags['ar1'], ar_tags['arZ'], rospy.Time(0))
-            rbt = return_rbt(trans=trans, rot=rot)
-            #rbt = return_rbt(np.array(trans),np.array(rot))
-            print('gab between ' + ar_tags['ar1'] + ' and ' + ar_tags['arZ'])
-            print rbt
-            twist = compute_twist(rbt=rbt)
-            print('twist between ' + ar_tags['ar1'] + ' and ' + ar_tags['arZ'])
-            print twist
-        except:
-            #print("AR TAGS EXISTANCE IS AS FOLLOWS: ")
-            #print(listener.frameExists(ar_tags['ar0']))
-            #print(listener.frameExists(ar_tags['ar1']))
-            #print(listener.frameExists(ar_tags['arZ']))
-            print ''
-
-        try:
-            (trans, rot) = listener.lookupTransform(ar_tags['ar0'], ar_tags['ar1'], rospy.Time(0))
-            rbt = return_rbt(trans=trans, rot=rot)
-            print('gab between ' + ar_tags['ar0'] + ' and ' + ar_tags['ar1'])
-            print rbt
-            twist = compute_twist(rbt=rbt)
-            print('twist between ' + ar_tags['ar0'] + ' and ' + ar_tags['ar1'])
-            print twist
-        except:
-            #print("AR TAGS EXISTANCE IS AS FOLLOWS: ")
-            #print(listener.frameExists(ar_tags['ar0']))
-            #print(listener.frameExists(ar_tags['ar1']))
-            #print(listener.frameExists(ar_tags['arZ']))
-            print ''
             
         try:
-            (trans, rot) = listener.lookupTransform(ar_tags['ar0'], ar_tags['arZ'], rospy.Time(0))
+            #modified so it looks up to origin. (USB_CAM??)
+
+            #camera must be on via run_all already.
+            (trans, rot) = listener.lookupTransform('usb_cam', ar_tags['arZ'], rospy.Time(0))
             rbt = return_rbt(trans=trans, rot=rot)
-            print('gab between ' + ar_tags['ar0'] + ' and ' + ar_tags['arZ'])
+            print('gab between camera and ' + ar_tags['arZ'])
             print rbt
             twist = compute_twist(rbt=rbt)
-            print('twist between ' + ar_tags['ar0'] + ' and ' + ar_tags['arZ'])
+            print('twist between camera and ' + ar_tags['arZ'])
             print twist
+
+            #as required by lab 8 --> publish this!
+            #ok.... wait, how?
+
+            print('wait_for_service')
+            rospy.wait_for_service('innovation')
+            print('done')
+            try:
+                add_two_ints = rospy.ServiceProxy('foo', NuSrv)
+                print('add two ints')
+                resp1 = add_two_ints(rbt)
+                print resp1
+            except rospy.ServiceException, e:
+                print sys.exc_info()[0]
+                #print "Service call failed: %s"%e
+
+            #nuSrv = 'usb_cam' #origin is usb_cam, right..?
+            #print(nuSrv)
+            #rospy.Service('innovation',nuSrv,self.triggerUpdate)
+            print('sent update!')
         except:
+            print sys.exc_info()[0]
             #print("AR TAGS EXISTANCE IS AS FOLLOWS: ")
             #print(listener.frameExists(ar_tags['ar0']))
             #print(listener.frameExists(ar_tags['ar1']))
