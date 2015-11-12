@@ -1,0 +1,9 @@
+[submodule "project/ar_track_alvar"]
+	path = project/ar_track_alvar
+	url = https://github.com/sniekum/ar_track_alvar.git
+[submodule "project/src/ar_track_alvar"]
+	path = project/src/ar_track_alvar
+	url = https://github.com/sniekum/ar_track_alvar.git
+[submodule "project/src/ar_track_alvar_msgs"]
+	path = project/src/ar_track_alvar_msgs
+	url = https://github.com/sniekum/ar_track_alvar_msgs.git
