@@ -16,3 +16,6 @@
 [submodule "project/src/image_common"]
 	path = project/src/image_common
 	url = https://github.com/ros-perception/image_common.git
+[submodule "project/src/kalibr"]
+	path = project/src/kalibr
+	url = https://github.com/ethz-asl/kalibr.git
