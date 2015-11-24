@@ -103,7 +103,6 @@ if __name__=='__main__':
         if origin in tags:
 
             tags.remove(origin)        
-            print(repr(tags))
             print(tags)
             tags.sort()
 
@@ -112,7 +111,11 @@ if __name__=='__main__':
             for tag in tags:
                 if tag in all_pieces:
                     #filter out AR_alvar thinking that it sees at tag #70 or something like that
-                    (trans, rot) = listener.lookupTransform(origin, tag, rospy.Time(0))
+                    try:
+                        (trans, rot) = listener.lookupTransform(origin, tag, rospy.Time(0))
+                    except:
+                        print("Momentarily lost view of either " + tag + " or " + origin)
+                        continue
                     
                     xyz = project_onto_plane(trans)  #project it onto plane of origin.
 
