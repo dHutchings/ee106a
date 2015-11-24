@@ -93,7 +93,7 @@ alias naut='nautilus .'
 alias magic='roslaunch baxter_moveit_config demo_baxter.launch'
 alias getsource='subl ~/.bashrc'
 alias resource='source ~/.bashrc'
-alias baxtersh='~/git/ee106a/baxter_ws/baxter.sh'
+alias baxtersh='~/ee106a/baxter_ws/baxter.sh'
 
 function catkin_create_pkg_with_std_deps { catkin_create_pkg "$1" roscpp rospy std_msgs; }
 function catkin_make_and_source { catkin_make; source "./devel/setup.bash"; }
@@ -126,10 +126,10 @@ fi
 
 # ROS configuration
 source /opt/ros/indigo/setup.bash
-source ~/git/ee106a/baxter_ws/devel/setup.bash
-source ~/git/ee106a/project/devel/setup.bash
+source ~/ee106a/baxter_ws/devel/setup.bash
+source ~/ee106a/project/devel/setup.bash
 
 # export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:/scratch/shared
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:~/git/ee106a/baxter_ws/src
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:~/ee106a/baxter_ws/src
 export ROS_IP=192.168.1.103
 export ROS_MASTER_URI=http://robotbaxter.local:11311
