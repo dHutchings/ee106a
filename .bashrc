@@ -126,7 +126,7 @@ fi
 
 # ROS configuration
 source /opt/ros/indigo/setup.bash
-source /scratch/shared/baxter_ws/devel/setup.bash
+source ~/git/ee106a/baxter_ws/devel/setup.bash
 source ~/git/ee106a/project/devel/setup.bash
 
 # export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:/scratch/shared
