@@ -91,10 +91,14 @@ alias l='ls -CF'
 
 alias naut='nautilus .'
 alias magic='roslaunch baxter_moveit_config demo_baxter.launch'
+alias getsource='subl ~/.bashrc'
 alias resource='source ~/.bashrc'
 alias baxtersh='~/git/ee106a/baxter_ws/baxter.sh'
 
 function catkin_create_pkg_with_std_deps { catkin_create_pkg "$1" roscpp rospy std_msgs; }
+function catkin_make_and_source { catkin_make; source "./devel/setup.bash"; }
+function catkin_touch_exec { touch "$1"; chmod +x "$1"; }
+function catkin_subl_exec { catkin_touch_exec "$1"; subl "$1"; }
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
