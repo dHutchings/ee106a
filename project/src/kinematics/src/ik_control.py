@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import rospy
-import roslib; roslib.load_manifest('kinematics')
+# import roslib; roslib.load_manifest('kinematics')
 import baxter_interface
 import moveit_commander
 from moveit_msgs.msg import OrientationConstraint, Constraints
@@ -61,7 +61,7 @@ def move_to_coord(trans, rot, which_arm='left', keep_oreint=False):
     if keep_oreint:
         # Create a path constraint for the arm
         orien_const = OrientationConstraint()
-        orien_const.link_name = "left_gripper";
+        orien_const.link_name = which_arm+"_gripper";
         orien_const.header.frame_id = "base";
         orien_const.orientation.y = -1.0;
         orien_const.absolute_x_axis_tolerance = 0.1;
@@ -85,6 +85,8 @@ def keyboard_ctrl(which_arm, arm, gripper):
     gripper_closed = False
     limb = baxter_interface.Limb(which_arm)
     pose = limb.endpoint_pose()
+    pose = {'rot': list(pose['orientation']), 
+            'trans' : list(pose['position'])}
     screen = curses.initscr()
 
     try:
@@ -97,17 +99,23 @@ def keyboard_ctrl(which_arm, arm, gripper):
             event = screen.getch()
 
             if event == curses.KEY_LEFT:
-                print(event)
+                pose['trans'][0] += 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == curses.KEY_RIGHT:
-                print(event)
+                pose['trans'][0] -= 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == curses.KEY_DOWN:
-                print(event)
+                pose['trans'][1] += 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == curses.KEY_UP:
-                print(event)
+                pose['trans'][1] -= 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == 122:  # Z
-                print(event)
+                pose['trans'][2] += 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == 120:  # X
-                print(event)
+                pose['trans'][2] -= 0.1
+                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
             elif event == 103:  # G
                 if gripper_closed:
                     gripper.open(block=False)
@@ -173,7 +181,7 @@ def init(mode='ROS'):
         keyboard_ctrl('left', left_arm, left_gripper)
     elif mode == 'text':
         text_ctrl('left', left_arm, left_gripper)
-    elif mode == 'ROS'
+    elif mode == 'ROS':
         # Set up listener node
 
         rospy.spin()
