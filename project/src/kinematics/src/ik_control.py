@@ -183,7 +183,7 @@ def init(mode='ROS'):
         text_ctrl('left', left_arm, left_gripper)
     elif mode == 'ROS':
         # Set up listener node
-
+        
         rospy.spin()
 
 if __name__ == '__main__':
