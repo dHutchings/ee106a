@@ -110,6 +110,10 @@ def map_keyboard(right_gripper):
                     print("joint "+str(i)+": "+str(arm.joint_angle(aj[i])))
                 continue
 
+            if c == 'getpose':
+                print arm.endpoint_pose()
+                continue
+
             angles = c.split()
             angleList = []
             if c[0] == 'l':

@@ -13,6 +13,9 @@ def main():
     #Start a node
     rospy.init_node('moveit_node')
 
+    #Set up the left gripper
+    left_gripper = baxter_gripper.Gripper('left')
+
     #Initialize both arms
     robot = moveit_commander.RobotCommander()
     scene = moveit_commander.PlanningSceneInterface()
@@ -28,14 +31,14 @@ def main():
     goal_1.header.frame_id = "base"
 
     #x, y, and z position
-    goal_1.pose.position.x = 0.2
-    goal_1.pose.position.y = 0.6
-    goal_1.pose.position.z = 0.2
+    goal_1.pose.position.x = 0.4
+    goal_1.pose.position.y = 0.3
+    goal_1.pose.position.z = 0.3
     
     #Orientation as a quaternion
     goal_1.pose.orientation.x = 0.0
-    goal_1.pose.orientation.y = -1.0
-    goal_1.pose.orientation.z = 0.0
+    goal_1.pose.orientation.y = -.5
+    goal_1.pose.orientation.z = .5
     goal_1.pose.orientation.w = 0.0
 
     #Set the goal state to the pose you just defined
@@ -51,19 +54,35 @@ def main():
     raw_input('Press <Enter> to move the left arm to goal pose 1 (path constraints are never enforced during this motion): ')
     left_arm.execute(left_plan)
 
+    #Calibrate the gripper (other commands won't work unless you do this first)
+    print('Calibrating...')
+    left_gripper.calibrate()
+    rospy.sleep(2.0)
+
+    #Close the left gripper
+    print('Closing...')
+    left_gripper.close(block=True)
+    rospy.sleep(1.0)
+
+    #Open the left gripper
+    print('Opening...')
+    left_gripper.open(block=True)
+    rospy.sleep(1.0)
+    print('Done!')
+
     #Second goal pose -----------------------------------------------------
     rospy.sleep(2.0)
     goal_2 = PoseStamped()
     goal_2.header.frame_id = "base"
 
     #x, y, and z position
-    goal_2.pose.position.x = 0.6
-    goal_2.pose.position.y = 0.4
-    goal_2.pose.position.z = 0.0
+    goal_2.pose.position.x = 0.8
+    goal_2.pose.position.y = 0.2
+    goal_2.pose.position.z = 0.2
     
     #Orientation as a quaternion
     goal_2.pose.orientation.x = 0.0
-    goal_2.pose.orientation.y = -1.0
+    goal_2.pose.orientation.y = 1.0
     goal_2.pose.orientation.z = 0.0
     goal_2.pose.orientation.w = 0.0
 
@@ -93,6 +112,22 @@ def main():
     #Execute the plan
     raw_input('Press <Enter> to move the left arm to goal pose 2: ')
     left_arm.execute(left_plan)
+
+    #Calibrate the gripper (other commands won't work unless you do this first)
+    print('Calibrating...')
+    left_gripper.calibrate()
+    rospy.sleep(2.0)
+
+    #Close the left gripper
+    print('Closing...')
+    left_gripper.close(block=True)
+    rospy.sleep(1.0)
+
+    #Open the left gripper
+    print('Opening...')
+    left_gripper.open(block=True)
+    rospy.sleep(1.0)
+    print('Done!')
 
 
     #Third goal pose -----------------------------------------------------
@@ -137,6 +172,22 @@ def main():
     #Execute the plan
     raw_input('Press <Enter> to move the left arm to goal pose 3: ')
     left_arm.execute(left_plan)
+
+    #Calibrate the gripper (other commands won't work unless you do this first)
+    print('Calibrating...')
+    left_gripper.calibrate()
+    rospy.sleep(2.0)
+
+    #Close the left gripper
+    print('Closing...')
+    left_gripper.close(block=True)
+    rospy.sleep(1.0)
+
+    #Open the left gripper
+    print('Opening...')
+    left_gripper.open(block=True)
+    rospy.sleep(1.0)
+    print('Done!')
 
 if __name__ == '__main__':
     main()

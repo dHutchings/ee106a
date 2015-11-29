@@ -28,18 +28,9 @@ Flags:
 -t              run interactive text interface
 """
 
-def move_to_coord(trans, rot, which_arm='left', keep_oreint=False):
+def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
     goal = PoseStamped()
     goal.header.frame_id = "base"
-    if which_arm == 'left':
-        arm = left_arm
-        arm_str = left_arm_str
-    elif which_arm == 'right':
-        arm = right_arm
-        arm_str = right_arm_str
-    else:
-        print("Error calling move_to_coord")
-        return
 
     # x, y, and z position
     goal.pose.position.x = trans[0]
@@ -64,9 +55,9 @@ def move_to_coord(trans, rot, which_arm='left', keep_oreint=False):
         orien_const.link_name = which_arm+"_gripper";
         orien_const.header.frame_id = "base";
         orien_const.orientation.y = -1.0;
-        orien_const.absolute_x_axis_tolerance = 0.1;
-        orien_const.absolute_y_axis_tolerance = 0.1;
-        orien_const.absolute_z_axis_tolerance = 0.1;
+        orien_const.absolute_x_axis_tolerance = 0.5;
+        orien_const.absolute_y_axis_tolerance = 0.5;
+        orien_const.absolute_z_axis_tolerance = 0.5;
         orien_const.weight = 1.0;
         consts = Constraints()
         consts.orientation_constraints = [orien_const]
@@ -85,6 +76,7 @@ def keyboard_ctrl(which_arm, arm, gripper):
     gripper_closed = False
     limb = baxter_interface.Limb(which_arm)
     pose = limb.endpoint_pose()
+    print(pose)
     pose = {'rot': list(pose['orientation']), 
             'trans' : list(pose['position'])}
     screen = curses.initscr()
@@ -99,23 +91,24 @@ def keyboard_ctrl(which_arm, arm, gripper):
             event = screen.getch()
 
             if event == curses.KEY_LEFT:
-                pose['trans'][0] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][0] += 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == curses.KEY_RIGHT:
-                pose['trans'][0] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][0] -= 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == curses.KEY_DOWN:
-                pose['trans'][1] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][1] += 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == curses.KEY_UP:
-                pose['trans'][1] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][1] -= 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == 122:  # Z
-                pose['trans'][2] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][2] += 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                print(pose)
             elif event == 120:  # X
-                pose['trans'][2] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], which_arm, True)
+                pose['trans'][2] -= 0.01
+                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == 103:  # G
                 if gripper_closed:
                     gripper.open(block=False)
