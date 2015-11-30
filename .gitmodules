@@ -19,3 +19,6 @@
 [submodule "project/src/kalibr"]
 	path = project/src/kalibr
 	url = https://github.com/ethz-asl/kalibr.git
+[submodule "project/src/vision_opencv"]
+	path = project/src/vision_opencv
+	url = https://github.com/ros-perception/vision_opencv.git
