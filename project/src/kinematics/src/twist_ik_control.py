@@ -7,8 +7,13 @@ import moveit_commander
 from moveit_msgs.msg import OrientationConstraint, Constraints
 from geometry_msgs.msg import PoseStamped
 import numpy as np
-
+import exp_quat_func as eqf
+import kin_func_skeleton as kfs
+from tf2_msgs.msg import TFMessage
+import tf
+import curses
 import time
+rbt = None
 
 usage_str = \
 """
@@ -19,8 +24,8 @@ Interactive mode allows control of the end-effector position via
 text input or arrow keys.
 
 Keyboard-interactive controls:
-[UP, DOWN]      move along y-axis
-[LEFT, RIGHT]   move along x-axis
+[UP, DOWN]      move along y-axis   Up is y+, Down is y-
+[LEFT, RIGHT]   move along x-axis.  Right is x+, Left is x-
 [Z, X]          move along z-axis
 [G]             toggle gripper
 
@@ -32,8 +37,10 @@ Flags:
 """
 
 rbt = None
+last_seen = time.time()
 
 def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
+    #coordinates are in baxter's torso!
     goal = PoseStamped()
     goal.header.frame_id = "base"
 
@@ -79,6 +86,10 @@ def text_ctrl():
 
 # This command dictates which key decides which Baxter movement.
 def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
+
+    #HACK HACK HACk
+    global rbt
+
     gripper_closed = False
     limb = baxter_interface.Limb(which_arm)
     pose = limb.endpoint_pose()
@@ -96,7 +107,7 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
     trans = pose['trans']
     trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
 
-    inc_var = .1
+    inc_var = 0.050
 
 
     try:
@@ -105,10 +116,30 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
         curses.cbreak()
         curses.curs_set(0)
         screen.keypad(1)
+        screen.nodelay(1)
 
         while True:
 
             #moved inside while so dynamic updates to inc_var can propigate
+
+            if rbt == None:
+                new_rot = np.eye(3)
+            else:
+                #print("NEW RBT\n\r")
+                new_rot = rbt
+                #print(new_rot)
+                #print("\n\r")
+
+            new_rot = np.array([[new_rot[0][0], new_rot[0][1], new_rot[0][2]], 
+                [new_rot[1][0], new_rot[1][1], new_rot[1][2]], [new_rot[2][0], new_rot[2][1], new_rot[2][2]]])
+
+            new_rot = np.linalg.inv(new_rot)
+            #need to invert hte rotation matrix.  While I have the RBT from the tag to the base, I need the rotation matrix that will rotate 
+            #cardinal directions the other way 'round'
+
+            #print("ROTATION MATRIX IS \n\r")
+            #print(new_rot)
+            #rint("\n\r")
             pos_x = np.array([[inc_var],[0],[0]])
             neg_x = np.array([[-inc_var],[0],[0]])
             pos_y = np.array([[0],[inc_var],[0]])
@@ -123,21 +154,27 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
             trans_pos_z = np.dot(new_rot, pos_z)
             trans_neg_z = np.dot(new_rot, neg_z)
 
+            #print("x+ is, in this coordinate frame:")
+            #print(trans_pos_x)
+            #rint("\n\r")
+
+
             event = screen.getch()
 
-            if event == curses.KEY_LEFT:
+            
+            if event == curses.KEY_RIGHT:
                 trans_mat = trans_mat + trans_pos_x
                 trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
                 move_to_coord(trans, pose['rot'], arm, which_arm)
-            elif event == curses.KEY_RIGHT:
+            elif event == curses.KEY_LEFT:
                 trans_mat = trans_mat + trans_neg_x
                 trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
                 move_to_coord(trans, pose['rot'], arm, which_arm)
-            elif event == curses.KEY_DOWN:
+            elif event == curses.KEY_UP:
                 trans_mat = trans_mat + trans_pos_y
                 trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
                 move_to_coord(trans, pose['rot'], arm, which_arm)
-            elif event == curses.KEY_UP:
+            elif event == curses.KEY_DOWN:
                 trans_mat = trans_mat + trans_neg_y
                 trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
                 move_to_coord(trans, pose['rot'], arm, which_arm)
@@ -156,7 +193,8 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
                 else:
                     gripper.close(block=False)
                     gripper_closed = True
-            elif event == 100:
+            elif event == 100: #D
+                screen.nodelay(0) #temporarily turn off non-blocking getch
                 #set inc_var to a new value
                 print("Enter new value for inc-var, in the form\n\r")
                 print("XX.XXd.  You must terminate with a d since we are bad at using curses\n\r")
@@ -170,22 +208,29 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
                 inc_var = float(string)
 
                 print("New Inc_var is " + str(inc_var) + '\n\r')
-            elif event == 101:
+                screen.nodelay(1) #and then turn back on non-blocking getch
+            elif event == 101: #E
+            
+
                 #resets position and orientation values. 
                 pose = limb.endpoint_pose()
                 pose = {'rot': list(pose['orientation']), 
                         'trans' : list(pose['position'])}
                 trans = pose['trans']
                 trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
-                print("Orientation reset")
+                print("Orientation reset \n\r")
 
+            
 
             elif event == 27:   # Esc
                 break
+            elif event == -1:  #no press on getch, it'll just keep running
+                pass
             else:
                 print("invalid key: %r \n\r" % event)
             #so we can only spam keyboard commands so fast.  But in general, don't hold down the key.
             time.sleep(0.2)
+            
     finally:
         screen.keypad(0)
         curses.curs_set(1)
@@ -193,6 +238,55 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
         curses.echo()
         curses.endwin()
         rospy.signal_shutdown("Shutdown signal recieved")
+
+def listener(tf_topic):
+    #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
+    rospy.Subscriber(tf_topic,TFMessage,callback)
+
+    global tf_listener
+
+    tf_listener = tf.TransformListener()
+
+def callback(data):
+    #run every time i see a TFMessage on tf_topic.
+    global tf_listener
+    global last_seen
+    global rbt
+
+    #header = data.header
+    #print(data.transforms[0])
+    #print(dir(data.transforms[0]))
+
+    tim = data.transforms[0]
+    tim = tim.header.stamp
+    #print(tim)
+    #print('fo')
+    if tf_listener.frameExists('ar_marker_63'):
+
+        now = rospy.Time.now()
+        #tf_listener.waitForTransform('ar_marker_63','left_gripper',now,rospy.Dure)
+        try:
+            (trans,rot) = tf_listener.lookupTransform('ar_marker_63','base',tim)
+            
+            (omega,theta) = eqf.quaternion_to_exp(rot)
+            rbt = eqf.return_rbt(trans,rot)
+
+            #print(rbt)
+            #print("")
+            #print("")
+            #print("Period was " + str(time.time() - last_seen))
+            if last_seen - time.time() > 10:
+                print("updated rbt, i hadn't seen it in a while \n\r")
+                #i haven't seen the tag in a while
+            last_seen = time.time()
+
+            #bring this down to 5hz, the camera rate.  I don't wanna kill the processor on this...
+            time.sleep(0.2)
+        #time0 asks for the most recent one
+        except:
+            pass
+
+        
         
 # Initializes all limbs/parts of limbs for later usage in the code. 
 def init(mode='ROS'):
@@ -239,29 +333,35 @@ def init(mode='ROS'):
 
     # Start keyboard control
     if mode == 'keyboard':
-        keyboard_ctrl('left', left_arm, left_gripper, rbt)
+
+        keyboard_ctrl('left', left_arm, left_gripper, rbt)        
     elif mode == 'text':
         text_ctrl('left', left_arm, left_gripper)
     elif mode == 'ROS':
         # Set up listener node
-        
+        listener('/tf')
         rospy.spin()
+    elif mode =='ROS&keyboard':
+        print("DOING BOTH AT SAME TIME")
+        listener('/tf')
+        keyboard_ctrl('left', left_arm, left_gripper, rbt)
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         init()
+    elif ('-l' in sys.argv) and ('-k' in sys.argv):
+        init('ROS&keyboard') 
     elif sys.argv[1] == '-h':
         print(usage_str)
     elif sys.argv[1] == '--help':
         print(usage_str)
     elif sys.argv[1] == '-k':
-        import curses
+
         init('keyboard')
     elif sys.argv[1] == '-t':
         init('text')
     elif sys.argv[1] == '-l':
-        print("LISTENER MODE")
-        print("NOT YET IMPLIMENTED")
+        init('ROS')
     else:
         print("invalid arguments")
         print(usage_str)
