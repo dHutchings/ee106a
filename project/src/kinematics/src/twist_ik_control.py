@@ -13,6 +13,8 @@ from tf2_msgs.msg import TFMessage
 import tf
 import curses
 import time
+
+import traceback
 rbt = None
 
 usage_str = \
@@ -39,10 +41,10 @@ Flags:
 rbt = None
 last_seen = time.time()
 
-def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
+def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="base"):
     #coordinates are in baxter's torso!
     goal = PoseStamped()
-    goal.header.frame_id = "base"
+    goal.header.frame_id = base
 
     # x, y, and z position
     goal.pose.position.x = trans[0]
@@ -80,6 +82,10 @@ def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
 
     # Execute the plan
     arm.execute(arm_plan)
+
+def incrimental_movement(dx,dy,dz,arm,which_arm,frame):
+    #move the arm an incrimental distance dx, dy, dz, relative to frame.
+    
 
 def text_ctrl():
     return
@@ -218,7 +224,7 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
                         'trans' : list(pose['position'])}
                 trans = pose['trans']
                 trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
-                print("Orientation reset \n\r")
+                print("Orientation and position reset \n\r")
 
             
 
@@ -276,8 +282,9 @@ def callback(data):
             #print("")
             #print("Period was " + str(time.time() - last_seen))
             if last_seen - time.time() > 10:
-                print("updated rbt, i hadn't seen it in a while \n\r")
+                #print("updated rbt, i hadn't seen it in a while \n\r")
                 #i haven't seen the tag in a while
+                pass
             last_seen = time.time()
 
             #bring this down to 5hz, the camera rate.  I don't wanna kill the processor on this...
@@ -286,7 +293,44 @@ def callback(data):
         except:
             pass
 
+def closed_loop_pick(which_arm,arm,destination='othello_piece',):
+    #assume that i'm already close.
+    global tf_listener
+    global last_seen
+    limb = baxter_interface.Limb(which_arm)
+
+    while True:
+        pose = limb.endpoint_pose()
+        pose = {'rot': list(pose['orientation']), 
+        'trans' : list(pose['position'])}
+
+        raw_input("Press any key to attempt to move x-y dist to 0")
         
+        try:
+            #now = rospy.Time.now()
+            #tf_listener.waitForTransform('suction_cup','othello_piece',now,rospy.Duration(2.5))
+            #now = rospy.Time.now()
+            last_time = tf_listener.getLatestCommonTime('suction_cup','othello_piece')
+            (trans,rot) = tf_listener.lookupTransform('suction_cup','othello_piece',last_time)
+            if time.time() - last_seen > 3:
+                print("Warning.  lag is over 3 seconds")
+            last_seen = time.time()
+        except KeyboardInterrupt:
+            sys.exit()
+
+        except:
+            print("Could not find trans / rot")
+            traceback.print_exc()
+        else:
+            err_dist = np.linalg.norm(trans) #error in meters from 
+            print(trans)
+            print("")
+
+
+            trans_3 = pose['trans']
+            trans_goal = (0,0,trans_3[2]) #i want to move the suction cupt to 0,0,whatever height i'm at right now of hte othello piece.
+            move_to_coord(trans_goal, pose['rot'], arm, which_arm,False,destination)
+        time.sleep(0.5)
         
 # Initializes all limbs/parts of limbs for later usage in the code. 
 def init(mode='ROS'):
@@ -345,6 +389,15 @@ def init(mode='ROS'):
         print("DOING BOTH AT SAME TIME")
         listener('/tf')
         keyboard_ctrl('left', left_arm, left_gripper, rbt)
+    elif mode == 'CloseLoop':
+        #print(moveit_commander)
+        #print(dir(moveit_commander))
+        #print(moveit_commander.move_group)
+        #print(dir(moveit_commander.move_group))
+        #left_arm.set_end_effector_link('suction_cup')
+        left_arm.set_goal_position_tolerance(0.001)
+        listener('/tf')
+        closed_loop_pick('left',left_arm)
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -356,12 +409,13 @@ if __name__ == '__main__':
     elif sys.argv[1] == '--help':
         print(usage_str)
     elif sys.argv[1] == '-k':
-
         init('keyboard')
     elif sys.argv[1] == '-t':
         init('text')
     elif sys.argv[1] == '-l':
         init('ROS')
+    elif sys.argv[1] == '-c':
+        init('CloseLoop')
     else:
         print("invalid arguments")
         print(usage_str)
