@@ -68,13 +68,20 @@ def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="bas
         orien_const = OrientationConstraint()
         orien_const.link_name = which_arm+"_gripper";
         orien_const.header.frame_id = "base";
-        orien_const.orientation.y = -1.0;
+
+        #constrain it to be the same as my goal state.  Seems reasonable.
+
+        orien_const.orientation.x = rot[0];
+        orien_const.orientation.y = rot[1];
+        orien_const.orientation.z = rot[2];
+        orien_const.orientation.w = rot[3];
         orien_const.absolute_x_axis_tolerance = 0.1;
         orien_const.absolute_y_axis_tolerance = 0.1;
         orien_const.absolute_z_axis_tolerance = 0.1;
         orien_const.weight = 1.0;
         consts = Constraints()
         consts.orientation_constraints = [orien_const]
+        print(consts)
         arm.set_path_constraints(consts)
 
     # Plan a path
@@ -83,7 +90,7 @@ def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="bas
     # Execute the plan
     arm.execute(arm_plan)
 
-def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None):
+def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None,changeHeight=True,keep_oreint=False):
     #move the arm an incrimental distance dx, dy, dz.\
     #relative to a frame which has the RBT to the BASE FRAME
     if rbt == None:
@@ -98,41 +105,40 @@ def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None):
 
     limb = baxter_interface.Limb(which_arm)
     
-    pose = {}
+    pose = get_pose(limb)
 
-    while len(pose) is 0:
-        #sometimes, i'm getting empty poses.  don't know why, but this should take care of it.
-        pose = limb.endpoint_pose()
-        #print(pose)
-
-    time.sleep(5)
-    pose = {'rot': list(pose['orientation']), 
-            'trans' : list(pose['position'])}
-    #need this for rotation data...
 
     if last_pos is None:
         #ok, so i don't know where my code thinks I should be.  Let me just fetch where I am
 
         trans = pose['trans']
-        last_pos = np.array([trans[0], trans[1], trans[2] ])
+        last_pos = np.array([[trans[0]], [trans[1]], [trans[2]] ])
     else:
-        print("I have a last pos \n\r")
-        print(last_pos)
-
+        pass
+        #print("I have a last pos \n\r")
+        #print(last_pos)
     #if i have a last pos fed to me by someone, use that instead.  That'll allow some wrapper software to keep track of where i was supposed to be at
     #this will be useful in case of small intended movements given consecutively.
+
+    #print("I think that i'm at \n\r")
     #print(last_pos)
-    #rint("\n\r")
+
+    #print("And I want to move by, in the base frame \n\r")
     #print(inc_trans)
-    #print('\n\r')
-    #print("foo \n\r")
-
-
     dest = last_pos + inc_trans
-    #print(dest)
     #pack np array into normal list
-    dest_ar = [dest[0][0], dest[1][0] ,dest[2][0]]
-    move_to_coord(dest_ar, pose['rot'], arm, which_arm)
+
+    if changeHeight:
+        dest_ar = [dest[0][0], dest[1][0] ,dest[2][0]]
+    else:
+        #get my last height, and shove that into the dest array
+        dest_ar = [dest[0][0], dest[1][0] ,last_pos[2][0]]
+
+    #print("My destination is \n\r")
+    #print(str(dest_ar) + "\n\r")
+    print(pose['rot'])
+    #pose['rot'] = [0,1,0,0] #let's point straight down. Bit of a hack right now..
+    move_to_coord(dest_ar, pose['rot'], arm, which_arm,keep_oreint)
     #but return it as a col array
     return dest
 
@@ -150,9 +156,9 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
 
     gripper_closed = False
     limb = baxter_interface.Limb(which_arm)
-    pose = limb.endpoint_pose()
-    pose = {'rot': list(pose['orientation']), 
-            'trans' : list(pose['position'])}
+
+    pose = get_pose(limb)
+
     screen = curses.initscr()
 
     if new_rot == None:
@@ -210,9 +216,6 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
             elif event == 122:  # Z
                 trans_mat  = incrimental_movement(0,0,inc_var,arm,which_arm,rbt,trans_mat)
             elif event == 120:  # X
-                #trans_mat = trans_mat + trans_neg_z
-                #trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                #move_to_coord(trans, pose['rot'], arm, which_arm)
                 trans_mat  = incrimental_movement(0,0,-inc_var,arm,which_arm,rbt,trans_mat)
             elif event == 103:  # G
                 if gripper_closed:
@@ -253,11 +256,15 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
                         'trans' : list(pose['position'])}
                 trans = pose['trans']
                 print( str(trans) + "\n\r")
+            elif event == 113: #q:
+                exit_soft = True
+                break
 
 
             
 
             elif event == 27:   # Esc
+                exit_soft = False
                 break
             elif event == -1:  #no press on getch, it'll just keep running
                 pass
@@ -272,7 +279,8 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
         curses.nocbreak()
         curses.echo()
         curses.endwin()
-        rospy.signal_shutdown("Shutdown signal recieved")
+        if not exit_soft:
+            rospy.signal_shutdown("Shutdown signal recieved")
 
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
@@ -322,6 +330,20 @@ def callback(data):
         except:
             pass
 
+def get_pose(limb):
+    pose = {}
+
+    while len(pose) is 0:
+        #sometimes, i'm getting empty poses.  don't know why, but this should take care of it.
+        pose = limb.endpoint_pose()
+        #print(pose)
+        time.sleep(.01)
+
+    pose = {'rot': list(pose['orientation']), 
+            'trans' : list(pose['position'])}
+
+    return pose
+
 def closed_loop_pick(which_arm,arm,destination='othello_piece',):
     #assume that i'm already close.
     global tf_listener
@@ -329,37 +351,78 @@ def closed_loop_pick(which_arm,arm,destination='othello_piece',):
     limb = baxter_interface.Limb(which_arm)
 
     while True:
-        pose = limb.endpoint_pose()
-        pose = {'rot': list(pose['orientation']), 
-        'trans' : list(pose['position'])}
+        pose = get_pose(limb)
 
-        raw_input("Press any key to attempt to move x-y dist to 0")
-        
+        execute = True
+        exit = raw_input("E to quit. K to start keyboard.  D for dist to target. Otherwise, i'll move to 0 \n\r")
+        if (exit == 'e') or (exit == 'E'):
+            rospy.signal_shutdown("Shutdown signal recieved")
+            return
+        elif(exit == 'd') or (exit == 'D'):
+            execute = False
+        elif(exit == 'k') or (exit == 'K'):
+            keyboard_ctrl(which_arm,arm,left_gripper)
+
         try:
             #now = rospy.Time.now()
             #tf_listener.waitForTransform('suction_cup','othello_piece',now,rospy.Duration(2.5))
             #now = rospy.Time.now()
             last_time = tf_listener.getLatestCommonTime('suction_cup','othello_piece')
             (trans,rot) = tf_listener.lookupTransform('suction_cup','othello_piece',last_time)
-            if time.time() - last_seen > 3:
-                print("Warning.  lag is over 3 seconds")
-            last_seen = time.time()
+
+            print("Saw the othello piece " + str(last_time.to_sec() - rospy.Time.now().to_sec()) + " secs ago \n\r")
+
+            #get the RBT from the suction_cup to the base so incrimental movement can deal with it.
+            last_time = tf_listener.getLatestCommonTime('suction_cup','base')
+            (trans_base,rot_base) = tf_listener.lookupTransform('suction_cup','base',last_time)
+            rbt_to_base = eqf.return_rbt(trans_base,rot_base)
+            
+            #print("time diff")
+
+
+            #if time.time() - last_seen > 3:
+            #    print("Warning.  lag is over 3 seconds")
+            #last_seen = time.time()
         except KeyboardInterrupt:
             sys.exit()
 
         except:
-            print("Could not find trans / rot")
+            print("Could not find trans / rot \n\r")
             traceback.print_exc()
         else:
-            err_dist = np.linalg.norm(trans) #error in meters from 
+            print("Error between suction cup and the othello piece is \n\r")
             print(trans)
             print("")
 
 
-            trans_3 = pose['trans']
-            trans_goal = (0,0,trans_3[2]) #i want to move the suction cupt to 0,0,whatever height i'm at right now of hte othello piece.
-            move_to_coord(trans_goal, pose['rot'], arm, which_arm,False,destination)
-        time.sleep(0.5)
+            err_dist = np.linalg.norm(trans[:2]) #error in meters from 
+
+            print("XY ERROR IS " +str(err_dist))
+
+            if execute:
+
+                if trans[2] > 0.05:
+                    #i'm very high away, just get closer...
+                    trans_goal = (.85*trans[0],.85*trans[1],trans[2]/2)
+                    change_height = True
+                    keep_oreint = False
+                elif err_dist > 0.01: #1cm, 1 inch.
+                    #final lateral alignment
+                    trans_goal = (trans[0],trans[1],0) #i want to move the suction cupt to 0,0,whatever height i'm at right now of hte othello piece.
+                    change_height = False
+                    keep_oreint = True
+                else:
+                    #just go down % hit it
+                    trans_goal = (.5*trans[0],.5*trans[1],trans[2])
+                    change_height = True
+                    keep_oreint = True
+
+                print("I want to move by, in the suction cup frame, \n\r")
+                print(str(trans_goal) + "\n\r")
+
+                incrimental_movement(trans_goal[0],trans_goal[1],trans_goal[2], arm, which_arm,rbt = rbt_to_base,changeHeight = change_height,keep_oreint=keep_oreint)
+                #wait for movement to execute ... wonder if there's a better way to do this?
+                #time.sleep(2.5)
         
 # Initializes all limbs/parts of limbs for later usage in the code. 
 def init(mode='ROS'):
@@ -384,6 +447,8 @@ def init(mode='ROS'):
 
     # Initialize grippers
     right_gripper = baxter_interface.gripper.Gripper('right')
+
+    global left_gripper
     left_gripper = baxter_interface.gripper.Gripper('left')
 
     left_arm_str = 'left_arm'
@@ -399,6 +464,7 @@ def init(mode='ROS'):
         if not init_state:
             print("Disabling robot...")
             rs.disable()
+
     rospy.on_shutdown(clean_shutdown)
 
     print("Enabling robot... ")
