@@ -83,8 +83,60 @@ def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="bas
     # Execute the plan
     arm.execute(arm_plan)
 
-def incrimental_movement(dx,dy,dz,arm,which_arm,frame):
-    #move the arm an incrimental distance dx, dy, dz, relative to frame.
+def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None):
+    #move the arm an incrimental distance dx, dy, dz.\
+    #relative to a frame which has the RBT to the BASE FRAME
+    if rbt == None:
+        new_rot = np.eye(3)
+    else:
+        new_rot = np.array([[rbt[0][0], rbt[0][1], rbt[0][2]], 
+            [rbt[1][0], rbt[1][1], rbt[1][2]], [rbt[2][0], rbt[2][1], rbt[2][2]]])
+        new_rot = np.linalg.inv(new_rot)
+
+    inc_dist = np.array([[dx],[dy],[dz]])
+    inc_trans = np.dot(new_rot, inc_dist)
+
+    limb = baxter_interface.Limb(which_arm)
+    
+    pose = {}
+
+    while len(pose) is 0:
+        #sometimes, i'm getting empty poses.  don't know why, but this should take care of it.
+        pose = limb.endpoint_pose()
+        #print(pose)
+
+    time.sleep(5)
+    pose = {'rot': list(pose['orientation']), 
+            'trans' : list(pose['position'])}
+    #need this for rotation data...
+
+    if last_pos is None:
+        #ok, so i don't know where my code thinks I should be.  Let me just fetch where I am
+
+        trans = pose['trans']
+        last_pos = np.array([trans[0], trans[1], trans[2] ])
+    else:
+        print("I have a last pos \n\r")
+        print(last_pos)
+
+    #if i have a last pos fed to me by someone, use that instead.  That'll allow some wrapper software to keep track of where i was supposed to be at
+    #this will be useful in case of small intended movements given consecutively.
+    #print(last_pos)
+    #rint("\n\r")
+    #print(inc_trans)
+    #print('\n\r')
+    #print("foo \n\r")
+
+
+    dest = last_pos + inc_trans
+    #print(dest)
+    #pack np array into normal list
+    dest_ar = [dest[0][0], dest[1][0] ,dest[2][0]]
+    move_to_coord(dest_ar, pose['rot'], arm, which_arm)
+    #but return it as a col array
+    return dest
+
+
     
 
 def text_ctrl():
@@ -143,55 +195,25 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
             #need to invert hte rotation matrix.  While I have the RBT from the tag to the base, I need the rotation matrix that will rotate 
             #cardinal directions the other way 'round'
 
-            #print("ROTATION MATRIX IS \n\r")
-            #print(new_rot)
-            #rint("\n\r")
-            pos_x = np.array([[inc_var],[0],[0]])
-            neg_x = np.array([[-inc_var],[0],[0]])
-            pos_y = np.array([[0],[inc_var],[0]])
-            neg_y = np.array([[0],[-inc_var],[0]])
-            pos_z = np.array([[0],[0],[inc_var]])
-            neg_z = np.array([[0],[0],[-inc_var]])
-
-            trans_pos_x = np.dot(new_rot, pos_x)
-            trans_neg_x = np.dot(new_rot, neg_x)
-            trans_pos_y = np.dot(new_rot, pos_y)
-            trans_neg_y = np.dot(new_rot, neg_y)
-            trans_pos_z = np.dot(new_rot, pos_z)
-            trans_neg_z = np.dot(new_rot, neg_z)
-
-            #print("x+ is, in this coordinate frame:")
-            #print(trans_pos_x)
-            #rint("\n\r")
-
 
             event = screen.getch()
 
             
             if event == curses.KEY_RIGHT:
-                trans_mat = trans_mat + trans_pos_x
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(inc_var,0,0,arm,which_arm,rbt,trans_mat)
             elif event == curses.KEY_LEFT:
-                trans_mat = trans_mat + trans_neg_x
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(-inc_var,0,0,arm,which_arm,rbt,trans_mat)
             elif event == curses.KEY_UP:
-                trans_mat = trans_mat + trans_pos_y
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(0,inc_var,0,arm,which_arm,rbt,trans_mat)
             elif event == curses.KEY_DOWN:
-                trans_mat = trans_mat + trans_neg_y
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(0,-inc_var,0,arm,which_arm,rbt,trans_mat)
             elif event == 122:  # Z
-                trans_mat = trans_mat + trans_pos_z
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(0,0,inc_var,arm,which_arm,rbt,trans_mat)
             elif event == 120:  # X
-                trans_mat = trans_mat + trans_neg_z
-                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
-                move_to_coord(trans, pose['rot'], arm, which_arm)
+                #trans_mat = trans_mat + trans_neg_z
+                #trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                #move_to_coord(trans, pose['rot'], arm, which_arm)
+                trans_mat  = incrimental_movement(0,0,-inc_var,arm,which_arm,rbt,trans_mat)
             elif event == 103:  # G
                 if gripper_closed:
                     gripper.open(block=False)
@@ -225,6 +247,13 @@ def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
                 trans = pose['trans']
                 trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
                 print("Orientation and position reset \n\r")
+            elif event == 102: #F
+                pose = limb.endpoint_pose()
+                pose = {'rot': list(pose['orientation']), 
+                        'trans' : list(pose['position'])}
+                trans = pose['trans']
+                print( str(trans) + "\n\r")
+
 
             
 
@@ -395,7 +424,7 @@ def init(mode='ROS'):
         #print(moveit_commander.move_group)
         #print(dir(moveit_commander.move_group))
         #left_arm.set_end_effector_link('suction_cup')
-        left_arm.set_goal_position_tolerance(0.001)
+        #left_arm.set_goal_position_tolerance(0.001)
         listener('/tf')
         closed_loop_pick('left',left_arm)
 
