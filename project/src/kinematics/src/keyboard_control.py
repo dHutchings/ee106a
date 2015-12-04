@@ -24,7 +24,7 @@ Inverse kinematics script
 
 Requires baxter.sh and abxter_moveit_noexec.launch to be run beforehand.
 Interactive mode allows control of the end-effector position via 
-text input or arrow keys.
+text input or arrow keys.  Can be done in relation to a set TF frame, or baxter's base.
 
 Keyboard-interactive controls:
 [UP, DOWN]      move along y-axis   Up is y+, Down is y-
@@ -34,14 +34,15 @@ Keyboard-interactive controls:
 
 Flags:
 --help, -h      print usage instructions
--k              run interactive keyboard interface
--t              run interactive text interface
--l      tf_topic    ar_marker_number        Get transforms to a set tag using the tf service.
+
+no options: normal keyboard control
+one option: the option is the tf topic.  Normally, this should be "/tf"
 """
 
 trans = None
 rot = None
 movement_server = None
+tf_listener = None
 
 #def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="base"):
 #def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None,changeHeight=True,keep_oreint=False):
@@ -131,6 +132,7 @@ def keyboard_ctrl():
                     #if rot is none, there's no TF listener looking at AR tag transforms.  Therefore, i'm moving in baxter base coordinate systems
                     response = movement_server(trans=trans_mat,incrimental='True',grip = grip)
                 else:
+                    print("Rot is not none \n\r")
                     response = movement_server(trans=trans_mat,incrimental='True',grip = grip,target_trans = trans, target_rot = rot)
 
                 print(str(response) + "\n\r")
@@ -149,11 +151,19 @@ def keyboard_ctrl():
 
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
+
+    print("Initializing node... ")
+    rospy.init_node("keyboard_control_rel_to_tf")
+    print("topic is " + str(tf_topic))
+
     rospy.Subscriber(tf_topic,TFMessage,callback)
 
     global tf_listener
 
     tf_listener = tf.TransformListener()
+
+    print("Construction completed")
+
 
 def callback(data):
     #run every time i see a TFMessage on tf_topic.
@@ -165,6 +175,8 @@ def callback(data):
     tim = data.transforms[0]
     tim = tim.header.stamp
 
+    #print("callback run \n\r")
+
     #right now, hardcoded to look out for AR_Marker_63.  This may not be the world's greatest Idea...
     if tf_listener.frameExists('ar_marker_63'):
 
@@ -175,6 +187,8 @@ def callback(data):
             
             trans = trans
             rot = rot
+
+            #print("updated \n\r")
 
             #(omega,theta) = eqf.quaternion_to_exp(rot)
             #rbt = eqf.return_rbt(trans,rot)
@@ -193,6 +207,7 @@ def callback(data):
             time.sleep(0.2)
         #time0 asks for the most recent one
         except:
+            #print("error with the update \n\r")
             pass
 
 
@@ -215,8 +230,12 @@ if __name__ == '__main__':
     print(len(sys.argv))
 
     if len(sys.argv) > 1:
-        target_tf_Frame = sys.argv[1]
-        listener(tf_topic)
-        keyboard_ctrl()
+        if sys.argv[1] == '-h':
+            print(usage_str)
+        else:
+            target_tf_Frame = sys.argv[1]
+            listener(target_tf_Frame)
+            time.sleep(5)
+            keyboard_ctrl()
     else:
         keyboard_ctrl()
