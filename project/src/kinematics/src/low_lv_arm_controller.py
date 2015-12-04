@@ -86,9 +86,9 @@ def move_to_coord(trans, rot, keep_oreint=False):
         orien_const.orientation.y = rot[1];
         orien_const.orientation.z = rot[2];
         orien_const.orientation.w = rot[3];
-        orien_const.absolute_x_axis_tolerance = 0.1;
-        orien_const.absolute_y_axis_tolerance = 0.1;
-        orien_const.absolute_z_axis_tolerance = 0.1;
+        orien_const.absolute_x_axis_tolerance = 0.02;
+        orien_const.absolute_y_axis_tolerance = 0.02;
+        orien_const.absolute_z_axis_tolerance = 0.02;
         orien_const.weight = 1.0;
         consts = Constraints()
         consts.orientation_constraints = [orien_const]
@@ -187,14 +187,15 @@ def movment_handle(data):
         return("ERROR: trans is of the wrong length")
     elif len(data.trans) is 3:
         trans = data.trans
-        grip = False
+        move = True
     else:
-        grip = True
-        if data.grip == 'False':
-            suck = False
-        else:
-            suck = True
+        move = False
 
+    if data.grip == 'True':
+        actuate_gripper(False)
+        #apparently, fase is actually what makes it suck.  Weird.
+    else:
+        pass
 
 
     if len(data.rot) is 0:
@@ -229,14 +230,14 @@ def movment_handle(data):
     else:
         changeHeight = False
 
-    if grip:
-        actuate_gripper(suck)
 
-    elif incrimental:
+
+
+    if move and incrimental:
         print("Incrimental Move by " + str(trans))
         #print("changeHeight?" + str(changeHeight))
         incrimental_movement(trans,target_rbt,changeHeight = changeHeight, keep_oreint = keep_orient)
-    else:
+    elif move:
         print("Absolute Movement to " + str(trans))
         move_to_coord(trans,rot,keep_orient)
 
