@@ -10,7 +10,22 @@ import rospy
 #Import the String message type from the /msg directory of
 #the std_msgs package.
 from std_msgs.msg import String
-from my_chatter.msg import TimestampString
+
+#Check to see if the x-coordinate character is valid.
+def check_a_h(val):
+  #Valid characters are a - h (lowercase)
+  if (val == 'a' or val == 'b' or val == 'c' or val == 'd' or 
+      val == 'e' or val == 'f' or val == 'g' or val == 'h'):
+    return True
+  return False
+
+#Check to see if the y-coordinate character is valid. 
+def check_1_8(val):
+  #Valid characters are 1 - 8
+  if (val == '1' or val == '2' or val == '3' or val == '4' or 
+      val == '5' or val == '6' or val == '7' or val == '8'):
+    return True
+  return False
 
 #Define the method which contains the main functionality of the node.
 def talker():
@@ -21,8 +36,8 @@ def talker():
 
   #Create an instance of the rospy.Publisher object which we can 
   #use to publish messages to a topic. This publisher publishes 
-  #messages of type TimestampString to the topic /user_messages
-  pub = rospy.Publisher('user_messages', TimestampString, queue_size=10)
+  #messages of type CoordMsg to the topic /user_messages
+  pub = rospy.Publisher('user_messages', String, queue_size=10)
   
   # Create a timer object that will sleep long enough to result in
   # a 10Hz publishing rate
@@ -30,15 +45,25 @@ def talker():
 
   # Loop until the node is killed with Ctrl-C
   while not rospy.is_shutdown():
-    print("Please enter a line of text and press <Enter>:")
+    print("Please enter an x coordinate for piece destination (a-h).")
     s = raw_input('-->')
+    while not check_a_h(s):
+      print("I'm sorry but " + s + " isn't a valid x-coord. Please try again.")
+      print("Please enter an x coordinate for piece destination (a-h)")
+      s = raw_input('-->')
+
+    print("Please enter a y coordinate for piece destination (1-8).")
+    d = raw_input('-->')
+    while not check_1_8(d):
+      print("I'm sorry but " + d + " isn't a valid y-coord. Please try again.")
+      print("Please enter a y coordinate for piece destination (1-8)")
+      d = raw_input('-->')
+
+    coord = s + d
     
-    # Construct an array that we want to publish
-    #include s
-    data = [s , rospy.get_time()]
-    
+    print ("This is a valid location.")
     # Publish our data to the 'chatter_talk' topic
-    pub.publish(s,rospy.get_time())
+    pub.publish(coord)
     
     # Use our rate object to sleep until it is time to publish again
     r.sleep()
