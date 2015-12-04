@@ -29,9 +29,24 @@ Feed this service commands, and it'll move the arm as appropriate.
 
 Flags:
 --help, -h      print usage instructions
+
+Takes a kinematics_request.srv, which has as data:
+
+#an array, trans
+#an array, rot
+#a string, grip
+#a string, incrimental
+#a string, change_height,
+#a string, keep_orient,
+
+#an array, target_rot
+#an array, target_trans
+#both of these are used to construct the RBT to a target, for the purposes of incrimental movement's movement along a coord frame
+
+#priority: Grip, then incrimental or not.
+
 """
 
-last_seen = time.time()
 arm = None
 gripper = None
 
@@ -84,7 +99,8 @@ def move_to_coord(trans, rot, keep_oreint=False):
     arm_plan = arm.plan()
 
     # Execute the plan
-    arm.execute(arm_plan)
+    #arm.execute(arm_plan)
+    arm.go(arm_plan,wait=True)
 
 def incrimental_movement(trans,rbt=None,changeHeight=True,keep_oreint=False):
     #move the arm an incrimental distance dx, dy, dz.\
@@ -103,7 +119,6 @@ def incrimental_movement(trans,rbt=None,changeHeight=True,keep_oreint=False):
 
     inc_dist = np.array([[dx],[dy],[dz]])
     inc_trans = np.dot(new_rot, inc_dist)
-
     
     pose = get_pose()
 
@@ -121,6 +136,7 @@ def incrimental_movement(trans,rbt=None,changeHeight=True,keep_oreint=False):
     dest = last_pos + inc_trans
     #pack np array into normal list
 
+
     if changeHeight:
         dest_ar = [dest[0][0], dest[1][0] ,dest[2][0]]
     else:
@@ -129,7 +145,8 @@ def incrimental_movement(trans,rbt=None,changeHeight=True,keep_oreint=False):
 
     #print("My destination is \n\r")
     #print(str(dest_ar) + "\n\r")
-    print(pose['rot'])
+    #print(pose['rot'])
+
     move_to_coord(dest_ar, pose['rot'],keep_oreint)
     #but return it as a col array
     return dest
@@ -159,35 +176,21 @@ def movment_handle(data):
     #run every time i get a service call
     #print(data)
 
-    #data has:
-    #an array, trans
-    #an array, rot
-    #a string, grip
-    #a string, incrimental
-    #a string, change_height,
-    #a string, keep_orient,
-
-    #an array, target_rot
-    #an array, targey_trans
-    #both of these are used to construct the RBT to a target, for the purposes of incrimental movement's movement along a coord frame
-
+    
 
     #anything can be empty.
 
     #if incrimental is not empty, assume that this is to be incrimental
 
 
-
-
-    if (len(trans) is not 3) or (len(trans) is not 0):
-        print("ERROR: trans is of the wrong length")
-        return
-    elif len(trans) is 3:
+    if (len(data.trans) is not 3) and (len(data.trans) is not 0):
+        return("ERROR: trans is of the wrong length")
+    elif len(data.trans) is 3:
         trans = data.trans
         grip = False
     else:
         grip = True
-        if data.grip = 'False':
+        if data.grip == 'False':
             suck = False
         else:
             suck = True
@@ -201,8 +204,7 @@ def movment_handle(data):
     else:
         rot = data.rot
         if len(rot) is not 4:
-            print("Error.  ROT should be a quaternion")
-            return
+            return("Error.  ROT should be a quaternion")
 
     if len(data.incrimental) is 0:
         incrimental = False
@@ -223,15 +225,16 @@ def movment_handle(data):
         keep_orient = True
 
     if len(data.change_height) is 0:
-        changeHeight = False
-    else:
         changeHeight = True
+    else:
+        changeHeight = False
 
     if grip:
-
+        actuate_gripper(suck)
 
     elif incrimental:
         print("Incrimental Move by " + str(trans))
+        #print("changeHeight?" + str(changeHeight))
         incrimental_movement(trans,target_rbt,changeHeight = changeHeight, keep_oreint = keep_orient)
     else:
         print("Absolute Movement to " + str(trans))
@@ -242,6 +245,7 @@ def movment_handle(data):
 
     #construct a response.  Currently, i return a string...1
     resp = kinematics_requestResponse("I_did_stuff")
+    print("\n\r")
     return resp
 
 
@@ -282,7 +286,7 @@ def init_IK():
     left_arm_str = 'left_arm'
 
     print('Calibrating...')
-    left_gripper.calibrate()
+    gripper.calibrate()
     rospy.sleep(2.0)
 
     # Shutdown callback

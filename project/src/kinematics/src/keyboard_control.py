@@ -15,7 +15,6 @@ import curses
 import time
 
 import traceback
-rbt = None
 
 from kinematics.srv import *
 
@@ -40,7 +39,8 @@ Flags:
 -l      tf_topic    ar_marker_number        Get transforms to a set tag using the tf service.
 """
 
-rbt = None
+trans = None
+rot = None
 movement_server = None
 
 #def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False,base="base"):
@@ -51,29 +51,14 @@ movement_server = None
 # This command dictates which key decides which Baxter movement.
 def keyboard_ctrl():
 
-    rospy.wait_for_service('low_level_arm')
+
     
-
-    movement_server = rospy.ServiceProxy('low_level_arm', kinematics_request)
-
-
-    response = movement_server(trans=[.03,.3,-.03],incrimental='True',grip = 'True')
-
-    print(response)
-
-    '''
-    #HACK HACK HACk
-    global rbt
+    #HACK HACK HACk.  If there's a tf_listener, there's gonna be a non-none trans/rot
+    global trans
+    global rot
 
     screen = curses.initscr()
 
-    if new_rot == None:
-        new_rot = np.eye(3)
-    # Here we may need to use inverse instead of the array we have. 
-    # I am not sure if we will be receiving the rbt from the tag to the camera or vice versa.
-    # Right now this assumes the rbt is from the tag to the torso. 
-    new_rot = np.array([[new_rot[0][0], new_rot[0][1], new_rot[0][2]], 
-        [new_rot[1][0], new_rot[1][1], new_rot[1][2]], [new_rot[2][0], new_rot[2][1], new_rot[2][2]]])
 
     inc_var = 0.050
 
@@ -90,44 +75,30 @@ def keyboard_ctrl():
 
             #moved inside while so dynamic updates to inc_var can propigate
 
-            if rbt == None:
-                new_rot = np.eye(3)
-            else:
-                #print("NEW RBT\n\r")
-                new_rot = rbt
-                #print(new_rot)
-                #print("\n\r")
-
-            new_rot = np.array([[new_rot[0][0], new_rot[0][1], new_rot[0][2]], 
-                [new_rot[1][0], new_rot[1][1], new_rot[1][2]], [new_rot[2][0], new_rot[2][1], new_rot[2][2]]])
-
-            new_rot = np.linalg.inv(new_rot)
-            #need to invert hte rotation matrix.  While I have the RBT from the tag to the base, I need the rotation matrix that will rotate 
-            #cardinal directions the other way 'round'
-
-
             event = screen.getch()
+            curses.flushinp() 
+            #do this so only one keyboard command gets processed at a time!
+
+            grip = ''
+            trans_mat = []
 
             
             if event == curses.KEY_RIGHT:
-                trans_mat  = incrimental_movement(inc_var,0,0,arm,which_arm,rbt,trans_mat)
+                trans_mat  = [inc_var,0,0]
             elif event == curses.KEY_LEFT:
-                trans_mat  = incrimental_movement(-inc_var,0,0,arm,which_arm,rbt,trans_mat)
+                trans_mat  = [-inc_var,0,0]
             elif event == curses.KEY_UP:
-                trans_mat  = incrimental_movement(0,inc_var,0,arm,which_arm,rbt,trans_mat)
+                trans_mat = [0,inc_var,0]
             elif event == curses.KEY_DOWN:
-                trans_mat  = incrimental_movement(0,-inc_var,0,arm,which_arm,rbt,trans_mat)
+                trans_mat = [0,-inc_var,0]
             elif event == 122:  # Z
-                trans_mat  = incrimental_movement(0,0,inc_var,arm,which_arm,rbt,trans_mat)
+                trans_mat = [0,0,inc_var]
             elif event == 120:  # X
-                trans_mat  = incrimental_movement(0,0,-inc_var,arm,which_arm,rbt,trans_mat)
+                trans_mat = [0,0,-inc_var]
             elif event == 103:  # G
-                if gripper_closed:
-                    gripper.open(block=False)
-                    gripper_closed = False
-                else:
-                    gripper.close(block=False)
-                    gripper_closed = True
+                grip = 'True'
+            elif event == 104:
+                grip = 'False'
             elif event == 100: #D
                 screen.nodelay(0) #temporarily turn off non-blocking getch
                 #set inc_var to a new value
@@ -144,37 +115,26 @@ def keyboard_ctrl():
 
                 print("New Inc_var is " + str(inc_var) + '\n\r')
                 screen.nodelay(1) #and then turn back on non-blocking getch
-            elif event == 101: #E
-            
-
-                #resets position and orientation values. 
-                pose = limb.endpoint_pose()
-                pose = {'rot': list(pose['orientation']), 
-                        'trans' : list(pose['position'])}
-                trans = pose['trans']
-                trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
-                print("Orientation and position reset \n\r")
-            elif event == 102: #F
-                pose = limb.endpoint_pose()
-                pose = {'rot': list(pose['orientation']), 
-                        'trans' : list(pose['position'])}
-                trans = pose['trans']
-                print( str(trans) + "\n\r")
-            elif event == 113: #q:
-                exit_soft = True
-                break
-
-
-            
-
-            elif event == 27:   # Esc
-                exit_soft = False
-                break
             elif event == -1:  #no press on getch, it'll just keep running
                 pass
             else:
                 print("invalid key: %r \n\r" % event)
             #so we can only spam keyboard commands so fast.  But in general, don't hold down the key.
+
+
+            if event is not -1: #do this b/c -1 means i've not put in a keyboard command
+                #setup request.  Now, we just need to figure out what to put into it.
+                rospy.wait_for_service('low_level_arm')
+                movement_server = rospy.ServiceProxy('low_level_arm', kinematics_request)
+
+                if rot is None:
+                    #if rot is none, there's no TF listener looking at AR tag transforms.  Therefore, i'm moving in baxter base coordinate systems
+                    response = movement_server(trans=trans_mat,incrimental='True',grip = grip)
+                else:
+                    response = movement_server(trans=trans_mat,incrimental='True',grip = grip,target_trans = trans, target_rot = rot)
+
+                print(str(response) + "\n\r")
+
             time.sleep(0.2)
             
     finally:
@@ -183,11 +143,10 @@ def keyboard_ctrl():
         curses.nocbreak()
         curses.echo()
         curses.endwin()
-        if not exit_soft:
-            rospy.signal_shutdown("Shutdown signal recieved")
-    '''
+        rospy.signal_shutdown("Shutdown signal recieved")
 
-'''
+
+
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
     rospy.Subscriber(tf_topic,TFMessage,callback)
@@ -200,16 +159,13 @@ def callback(data):
     #run every time i see a TFMessage on tf_topic.
     global tf_listener
     global last_seen
-    global rbt
-
-    #header = data.header
-    #print(data.transforms[0])
-    #print(dir(data.transforms[0]))
+    global trans
+    global rot
 
     tim = data.transforms[0]
     tim = tim.header.stamp
-    #print(tim)
-    #print('fo')
+
+    #right now, hardcoded to look out for AR_Marker_63.  This may not be the world's greatest Idea...
     if tf_listener.frameExists('ar_marker_63'):
 
         now = rospy.Time.now()
@@ -217,8 +173,11 @@ def callback(data):
         try:
             (trans,rot) = tf_listener.lookupTransform('ar_marker_63','base',tim)
             
-            (omega,theta) = eqf.quaternion_to_exp(rot)
-            rbt = eqf.return_rbt(trans,rot)
+            trans = trans
+            rot = rot
+
+            #(omega,theta) = eqf.quaternion_to_exp(rot)
+            #rbt = eqf.return_rbt(trans,rot)
 
             #print(rbt)
             #print("")
@@ -235,7 +194,7 @@ def callback(data):
         #time0 asks for the most recent one
         except:
             pass
-'''
+
 
 def get_pose(limb):
     pose = {}
@@ -253,4 +212,11 @@ def get_pose(limb):
 
 
 if __name__ == '__main__':
-    keyboard_ctrl()
+    print(len(sys.argv))
+
+    if len(sys.argv) > 1:
+        target_tf_Frame = sys.argv[1]
+        listener(tf_topic)
+        keyboard_ctrl()
+    else:
+        keyboard_ctrl()
