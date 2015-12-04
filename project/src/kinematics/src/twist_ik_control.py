@@ -137,7 +137,6 @@ def incrimental_movement(dx,dy,dz,arm,which_arm,rbt=None,last_pos = None,changeH
     #print("My destination is \n\r")
     #print(str(dest_ar) + "\n\r")
     print(pose['rot'])
-    #pose['rot'] = [0,1,0,0] #let's point straight down. Bit of a hack right now..
     move_to_coord(dest_ar, pose['rot'], arm, which_arm,keep_oreint)
     #but return it as a col array
     return dest
