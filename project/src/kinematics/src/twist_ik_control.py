@@ -6,7 +6,9 @@ import baxter_interface
 import moveit_commander
 from moveit_msgs.msg import OrientationConstraint, Constraints
 from geometry_msgs.msg import PoseStamped
+import numpy as np
 
+import time
 
 usage_str = \
 """
@@ -26,10 +28,10 @@ Flags:
 --help, -h      print usage instructions
 -k              run interactive keyboard interface
 -t              run interactive text interface
+-l      tf_topic    ar_marker_number        Get transforms to a set tag using the tf service.
 """
 
-
-
+rbt = None
 
 def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
     goal = PoseStamped()
@@ -75,7 +77,8 @@ def move_to_coord(trans, rot, arm, which_arm='left', keep_oreint=False):
 def text_ctrl():
     return
 
-def keyboard_ctrl(which_arm, arm, gripper):
+# This command dictates which key decides which Baxter movement.
+def keyboard_ctrl(which_arm, arm, gripper, new_rot=None):
     gripper_closed = False
     limb = baxter_interface.Limb(which_arm)
     pose = limb.endpoint_pose()
@@ -83,34 +86,69 @@ def keyboard_ctrl(which_arm, arm, gripper):
             'trans' : list(pose['position'])}
     screen = curses.initscr()
 
+    if new_rot == None:
+        new_rot = np.eye(3)
+    # Here we may need to use inverse instead of the array we have. 
+    # I am not sure if we will be receiving the rbt from the tag to the camera or vice versa.
+    # Right now this assumes the rbt is from the tag to the torso. 
+    new_rot = np.array([[new_rot[0][0], new_rot[0][1], new_rot[0][2]], 
+        [new_rot[1][0], new_rot[1][1], new_rot[1][2]], [new_rot[2][0], new_rot[2][1], new_rot[2][2]]])
+    trans = pose['trans']
+    trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
+
+    inc_var = .1
+
+
     try:
+
         curses.noecho()
         curses.cbreak()
         curses.curs_set(0)
         screen.keypad(1)
 
         while True:
+
+            #moved inside while so dynamic updates to inc_var can propigate
+            pos_x = np.array([[inc_var],[0],[0]])
+            neg_x = np.array([[-inc_var],[0],[0]])
+            pos_y = np.array([[0],[inc_var],[0]])
+            neg_y = np.array([[0],[-inc_var],[0]])
+            pos_z = np.array([[0],[0],[inc_var]])
+            neg_z = np.array([[0],[0],[-inc_var]])
+
+            trans_pos_x = np.dot(new_rot, pos_x)
+            trans_neg_x = np.dot(new_rot, neg_x)
+            trans_pos_y = np.dot(new_rot, pos_y)
+            trans_neg_y = np.dot(new_rot, neg_y)
+            trans_pos_z = np.dot(new_rot, pos_z)
+            trans_neg_z = np.dot(new_rot, neg_z)
+
             event = screen.getch()
-            # print(pose)
 
             if event == curses.KEY_LEFT:
-                pose['trans'][0] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_pos_x
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == curses.KEY_RIGHT:
-                pose['trans'][0] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_neg_x
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == curses.KEY_DOWN:
-                pose['trans'][1] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_pos_y
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == curses.KEY_UP:
-                pose['trans'][1] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_neg_y
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == 122:  # Z
-                pose['trans'][2] += 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_pos_z
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == 120:  # X
-                pose['trans'][2] -= 0.1
-                move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
+                trans_mat = trans_mat + trans_neg_z
+                trans = [trans_mat[0][0], trans_mat[1][0], trans_mat[2][0]]
+                move_to_coord(trans, pose['rot'], arm, which_arm)
             elif event == 103:  # G
                 if gripper_closed:
                     gripper.open(block=False)
@@ -118,11 +156,36 @@ def keyboard_ctrl(which_arm, arm, gripper):
                 else:
                     gripper.close(block=False)
                     gripper_closed = True
+            elif event == 100:
+                #set inc_var to a new value
+                print("Enter new value for inc-var, in the form\n\r")
+                print("XX.XXd.  You must terminate with a d since we are bad at using curses\n\r")
+                event2 = screen.getch()
+                string = chr(event2)
+
+                while event2 is not 'd':
+                    event2 = chr(screen.getch())
+                    string = string + event2
+                string = string[:-1]
+                inc_var = float(string)
+
+                print("New Inc_var is " + str(inc_var) + '\n\r')
+            elif event == 101:
+                #resets position and orientation values. 
+                pose = limb.endpoint_pose()
+                pose = {'rot': list(pose['orientation']), 
+                        'trans' : list(pose['position'])}
+                trans = pose['trans']
+                trans_mat = np.array([[trans[0]], [trans[1]], [trans[2]]])
+                print("Orientation reset")
+
 
             elif event == 27:   # Esc
                 break
             else:
-                print("invalid key: %r" % event)
+                print("invalid key: %r \n\r" % event)
+            #so we can only spam keyboard commands so fast.  But in general, don't hold down the key.
+            time.sleep(0.2)
     finally:
         screen.keypad(0)
         curses.curs_set(1)
@@ -131,7 +194,7 @@ def keyboard_ctrl(which_arm, arm, gripper):
         curses.endwin()
         rospy.signal_shutdown("Shutdown signal recieved")
         
-
+# Initializes all limbs/parts of limbs for later usage in the code. 
 def init(mode='ROS'):
     print("Initializing node... ")
     rospy.init_node("ik_control")
@@ -156,6 +219,9 @@ def init(mode='ROS'):
     right_gripper = baxter_interface.gripper.Gripper('right')
     left_gripper = baxter_interface.gripper.Gripper('left')
 
+    left_arm_str = 'left_arm'
+    right_arm_str = 'right_arm'
+
     print('Calibrating...')
     right_gripper.calibrate()
     left_gripper.calibrate()
@@ -173,7 +239,7 @@ def init(mode='ROS'):
 
     # Start keyboard control
     if mode == 'keyboard':
-        keyboard_ctrl('left', left_arm, left_gripper)
+        keyboard_ctrl('left', left_arm, left_gripper, rbt)
     elif mode == 'text':
         text_ctrl('left', left_arm, left_gripper)
     elif mode == 'ROS':
@@ -193,6 +259,9 @@ if __name__ == '__main__':
         init('keyboard')
     elif sys.argv[1] == '-t':
         init('text')
+    elif sys.argv[1] == '-l':
+        print("LISTENER MODE")
+        print("NOT YET IMPLIMENTED")
     else:
         print("invalid arguments")
         print(usage_str)
