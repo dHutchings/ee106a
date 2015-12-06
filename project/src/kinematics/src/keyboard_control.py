@@ -137,7 +137,6 @@ def keyboard_ctrl():
 
                 print(str(response) + "\n\r")
 
-            time.sleep(0.2)
             
     finally:
         screen.keypad(0)

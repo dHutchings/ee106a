@@ -110,7 +110,7 @@ def incrimental_movement(trans,rbt=None,changeHeight=True,keep_oreint=False):
     dy = trans[1]
     dz = trans[2]
 
-    if rbt == None:
+    if rbt is None:
         new_rot = np.eye(3)
     else:
         new_rot = np.array([[rbt[0][0], rbt[0][1], rbt[0][2]], 
@@ -313,6 +313,13 @@ if __name__ == '__main__':
         print(usage_str)
     elif sys.argv[1] == '--help':
         print(usage_str)
+    elif len(sys.argv) == 3:
+        print("I'm assuming that i'm being called from a launch file.")
+        movement_server()
+        init_IK()
+        rospy.spin()
     else:
         print("invalid arguments")
         print(usage_str)
+        print("You Gave me")
+        print(sys.argv)
