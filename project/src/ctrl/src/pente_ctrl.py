@@ -2,7 +2,7 @@
 import sys
 import argparse
 import rospy
-from std_msgs.msg import String, Uint32
+from std_msgs.msg import String
 from transitions import Machine
 from kinematics.srv import *
 
@@ -20,8 +20,9 @@ class PenteFSM(object):
               'exec_move', 'reset_pos', 'terminate', 'error']
     transitions = [
         {'trigger':'startup_done', 'source':'startup', 'dest':'standby'},
-        {'trigger':'game_over', 'source':'standby', 'dest':'terminate', 'after':'game_over_cb'},
-        {'trigger':'board_ready', 'source':'standby', 'dest':'eval_board'
+        {'trigger':'game_over', 'source':'standby', 'dest':'terminate', 
+            'after':'game_over_cb'},
+        {'trigger':'board_ready', 'source':'standby', 'dest':'eval_board',
             'before':'board_ready_cb', 'after':'print_to_head'},
         {'trigger':'state_ready', 'source':'eval_board', 'dest':'mk_move'},
         {'trigger':'mv_ready', 'source':'mk_move', 'dest':'exec_move'},
@@ -113,24 +114,25 @@ class PenteFSM(object):
 
 def print_to_stream(statement):
     global printstream
-    if not is_quiet:
-        printstream.publish(String(statement))
+
+    print(statement)
+    printstream.publish(data=statement)
 
 
 def main():
     global printstream
 
     fsm = PenteFSM()
-    r = rospy.rate(10)
 
     print("Initializing node...")
     rospy.init_node("pente_ctrl")
+    r = rospy.Rate(10)
     
     print("Initializing status feed...")
-    printstream = rospy.Publisher('pente_ctrl/status', String, queue_size=10)
-    
+    printstream = rospy.Publisher('/pente_ctrl/status', String, queue_size=10)
+
     print("Initializing keyboard input...")
-    rospy.Subscriber('pente_ctrl/keyboard', Uint32, fsm.handle_keyboard)
+    rospy.Subscriber('pente_ctrl/keyboard', String, fsm.handle_keyboard)
 
     print("Connecting to closed_loop service...")
     rospy.wait_for_service("closed_loop")
@@ -169,3 +171,5 @@ if __name__ == '__main__':
         check_launch = False
     if args.quiet:
         is_quiet = True
+
+    main()

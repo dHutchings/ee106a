@@ -95,6 +95,7 @@ def keyboard_ctrl(which_arm, arm, gripper):
 
             if event == curses.KEY_LEFT:
                 pose['trans'][0] += 0.1
+                print(pose['trans'])
                 move_to_coord(pose['trans'], pose['rot'], arm, which_arm)
             elif event == curses.KEY_RIGHT:
                 pose['trans'][0] -= 0.1
