@@ -2,6 +2,7 @@
 **/devel/
 */.catkin_workspace
 *~
+baxter_ws/*
 *.DS_Store
 *.pyc
 *.pdf

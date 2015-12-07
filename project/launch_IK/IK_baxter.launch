@@ -5,6 +5,7 @@
 
 <node pkg="baxter_interface" type = "joint_trajectory_action_server.py" name = "trajectory_server" />
 
+
 <node pkg="kinematics" type = "low_lv_arm_controller.py" name = "low_lv_controller" />
 
 </launch>
