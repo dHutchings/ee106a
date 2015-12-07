@@ -46,10 +46,6 @@ import tf
 
 global ar_marker
   
-def handle_turtle_pose(msg, turtlename):
-    br = tf.TransformBroadcaster()
-    br.sendTransform((msg.x, msg.y, 0), tf.transformations.quaternion_from_euler(0, 0, msg.theta), rospy.Time.now(), turtlename, "world")
-
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
 
@@ -114,7 +110,7 @@ def callback(data):
 
         br = tf.TransformBroadcaster()
         br.sendTransform((ndata.transforms[0].transform.translation.x, ndata.transforms[0].transform.translation.y, ndata.transforms[0].transform.translation.z), 
-        (-quaternion.x, -quaternion.y, quaternion.z, quaternion.w), 
+        (quaternion.x, quaternion.y, quaternion.z, quaternion.w), 
         rospy.Time.now(),
         ar_marker + "n", "head_camera")
 
