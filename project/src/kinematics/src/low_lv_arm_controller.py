@@ -194,7 +194,9 @@ def movment_handle(data):
     if data.grip == 'True':
         actuate_gripper(False)
         #apparently, fase is actually what makes it suck.  Weird.
-    else:
+    elif data.grip == 'False':
+        actuate_gripper(True)
+    else: #just let currnet state go on.
         pass
 
 
