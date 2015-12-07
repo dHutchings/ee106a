@@ -305,7 +305,7 @@ def init_IK():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
+    if len(sys.argv) == (1 or 4):
         movement_server()
         init_IK()
         rospy.spin()

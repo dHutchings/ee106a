@@ -24,13 +24,13 @@ class PenteFSM(object):
             'after':'game_over_cb'},
         {'trigger':'board_ready', 'source':'standby', 'dest':'eval_board',
             'before':'board_ready_cb', 'after':'print_to_head'},
-        {'trigger':'state_ready', 'source':'eval_board', 'dest':'mk_move'},
-        {'trigger':'mv_ready', 'source':'mk_move', 'dest':'exec_move'},
-        {'trigger':'mv_done', 'source':'exec_move', 'dest':'reset_pos'},
+        {'trigger':'state_ready', 'source':'eval_board', 'dest':'mk_move',
+            'after':'state_ready_cb'},
+        {'trigger':'mv_ready', 'source':'mk_move', 'dest':'exec_move',
+            'after':'mv_ready_cb'},
+        {'trigger':'mv_done', 'source':'exec_move', 'dest':'reset_pos',
+            'after':'mv_done_cb'},
         {'trigger':'wait_for_player', 'source':'reset_pos', 'dest':'standby'},
-
-        # Error transitions
-        {'trigger':'recieved_error', 'source':'exec_move', 'dest':'error'}
     ]
 
     def __init__(self):
@@ -103,6 +103,24 @@ class PenteFSM(object):
         # Arm uses closed loop control to go to dropoff location
         self.targetPoints.append(('high', getBoardRBT(dropoffSquare)))
 
+    def mv_ready_cb(self):
+        for instruction in self.targetPoints:
+            if instruction[0] == 'low':
+                result = lowLevelSrv()
+            elif instruction[0] == 'high':
+                result = closedLoopSrv()
+
+            if result != True:
+                print_to_stream("FAILED INSTRUCTION: "+str(instruction))
+                self.to_error()
+
+    def mv_done_cb(self):
+        result = lowLevelSrv()
+        if result != True:
+            print_to_stream("FAILED INSTRUCTION: <return to standy position>")
+            self.to_error()
+        self.to_standby()
+
 
     def flush_cmd(self):
         self.command = self.nullCmd
@@ -118,6 +136,8 @@ def print_to_stream(statement):
     print(statement)
     printstream.publish(data=statement)
 
+def getBoardRBT(location):
+    return location
 
 def main():
     global printstream
