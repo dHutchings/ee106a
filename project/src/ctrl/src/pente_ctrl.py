@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 import sys
+import argparse
 import rospy
+from std_msgs.msg import String, Uint32
 from transitions import Machine
+
+global printstream
+
+check_launch = True
+is_quiet = False
 
 class PenteFSM(object):
 
@@ -27,8 +34,50 @@ class PenteFSM(object):
                                initial='startup',
                                auto_transitions=False)
 
+    def update_state(self):
+    	return
+
+
+def print_to_stream(statement):
+	global printstream
+	if not is_quiet:
+		printstream.publish(String(statement))
+
+
+def handle_keyboard(msg):
+	pass
+
+
+def main():
+	global printstream
+
+	fsm = PenteFSM()
+	r = rospy.rate(10)
+
+	print("Initializing node...")
+	rospy.init_node("pente_ctrl")
+	print("Initializing status feed...")
+	printstream = rospy.Publisher('pente_ctrl/status', String, queue_size=10)
+	print("Initializing keyboard input...")
+	rospy.Subscriber('pente_ctrl/keyboard', Uint32, handle_keypress)
+
+	print("Use pente_ctrl/keyboard topic to interface with pente_ctrl.")
+	print("Press CTRL+C to shutdown.")
+
+	while not rospy.is_shutdown():
+		fsm.update_state()
+		r.sleep()
 
 
 
 if __name__ == '__main__':
-    fsm = PenteFSM()
+    parser = argparse.ArgumentParser(description="The One Pente Controller to rule them all.")
+    parser.add_argument('-f', '--force', help="start pente_ctrl without running launch checks.",
+    									 action='store_true')
+    parser.add_argument('-q', '--quiet', help="disable print statements",
+    									  action='store_true')
+    args = parser.parse_args()
+    if args.force:
+    	check_launch = False
+    if args.quiet:
+    	is_quiet = True
