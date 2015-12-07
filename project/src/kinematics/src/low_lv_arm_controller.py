@@ -49,6 +49,7 @@ Takes a kinematics_request.srv, which has as data:
 
 arm = None
 gripper = None
+gripper_status = True
 
 def move_to_coord(trans, rot, keep_oreint=False):
     #coordinates are in baxter's torso!
@@ -175,7 +176,7 @@ def actuate_gripper(state):
 def movment_handle(data):
     #run every time i get a service call
     #print(data)
-
+    global gripper_status
     
 
     #anything can be empty.
@@ -192,10 +193,12 @@ def movment_handle(data):
         move = False
 
     if data.grip == 'True':
-        actuate_gripper(False)
+        gripper_status = False
+        #actuate_gripper(False)
         #apparently, fase is actually what makes it suck.  Weird.
     elif data.grip == 'False':
-        actuate_gripper(True)
+        gripper_status = True
+        #actuate_gripper(True)
     else: #just let currnet state go on.
         pass
 
@@ -303,14 +306,22 @@ def init_IK():
     print("Enabling robot... ")
     rs.enable()
 
-    
+
+def maintain_gripper():
+    global gripper_status
+
+    while not rospy.is_shutdown():
+        #so I hold the gripper on or off, as appropriate
+        actuate_gripper(gripper_status)
+        time.sleep(.2) #update at 5 Hz
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         movement_server()
         init_IK()
-        rospy.spin()
+        maintain_gripper()
+        #rospy.spin()
     elif sys.argv[1] == '-h':
         print(usage_str)
     elif sys.argv[1] == '--help':
@@ -319,7 +330,8 @@ if __name__ == '__main__':
         print("I'm assuming that i'm being called from a launch file.")
         movement_server()
         init_IK()
-        rospy.spin()
+        maintain_gripper()
+        #rospy.spin()
     else:
         print("invalid arguments")
         print(usage_str)
