@@ -13,6 +13,7 @@ from pieces import all_tags
 import time
 from board_geometry import *
 from gridworld.srv import *
+from headcam.srv import *
 
 
 
@@ -27,8 +28,12 @@ square_size = 0.027 #square size in m.
 
 state = None #initial board state.
 
+timeout = 1 #time in seconds before grid_state decides that the AR tag is gone
+
 def list_all_visible_ARtags(listener):
     lis = listener.allFramesAsString();
+
+
 
     #great.  So all those frams are EVER seen.  I need to filter out so I only look for tags seen... the last 5 secnods?
 
@@ -47,18 +52,20 @@ def list_all_visible_ARtags(listener):
             
             frame = sent_split[1]
 
-            #print(dir(tf))
-            last_seen = listener.getLatestCommonTime(frame,'usb_cam')
-            #currently, hardcoded for the webcam.  Seems reasonable, but I may need to pass in the right arguments to it...
+            if frame in list_of_board_markers:
+                #that means that this is an AR tag that's from my board, and not some other ar tag
+                #print(dir(tf))
+                last_seen = listener.getLatestCommonTime(frame,'usb_cam')
+                #currently, hardcoded for the webcam.  Seems reasonable, but I may need to pass in the right arguments to it...
 
-            #print("Last seen at " + str(last_seen) + " now is " + str(now))
+                #print("Last seen at " + str(last_seen) + " now is " + str(now))
 
-            t_diff = ( now.to_sec() - last_seen.to_sec())
+                t_diff = ( now.to_sec() - last_seen.to_sec())
 
-            #print(t_diff)
+                #print(t_diff)
 
-            if abs(t_diff) < 1:
-                lis[i] = frame
+                if abs(t_diff) < timeout:
+                    lis[i] = frame
 
                 #lis is now a list of strings, where each string is the ar_marker_N.  I've seen all of those within 2 seconds.
     return lis
@@ -275,16 +282,80 @@ def determine_board_state():
 
     return board_state
 
+
+def update_tf_frames(bstate):
+    #iterate through all the grid points.  If it's found that there's an othello piece there...
+    for grid in bstate.keys():
+        if bstate[grid][1] is not None:
+
+            child_frame_id = bstate[grid][1]
+            homing_frame_id = bstate[grid][2]
+
+            transform = geometry_msgs.msg.Transform()
+
+            x = grid_identifiers[0].index(grid[0])
+            parent_x = grid_identifiers[0].index(marker_to_loc[homing_frame_id][0])
+            dx = - parent_x + x
+            dy = - marker_to_loc[homing_frame_id][1] + grid[1] 
+
+            #print('Child is ' + str(child_frame_id))
+            #print('Parent is' + str(homing_frame_id))
+            #print("DX " + str(dx) + " DY " + str(dy))
+
+            transform.translation.x = dx * square_size
+            transform.translation.y = dy * square_size
+            transform.translation.z = 0.2/2.54/100 #b/c an othello piece has height.  distance determined by eye.
+            transform.rotation.x = 0
+            transform.rotation.y = 0
+            transform.rotation.z = 0
+            transform.rotation.w = -1
+
+            #think that q = [1,0,0,0] is a no rotation quaternion
+            response = tf_updater(child=child_frame_id,parent= homing_frame_id,transform = transform)
+            #print response
+        else:
+            #remove it from view, since I know that there's now no piece there.  remove it --> empty homing frame ID
+            pos = grid
+
+            #construct what the child_frame would be called, and then tell TransServ.py to kick it out.
+            child_frame_id = 'piece_' + str(pos[0]) + '_' + str(pos[1])
+            homing_frame_id = ''
+
+            transform = geometry_msgs.msg.Transform()
+            transform.translation.x = 0
+            transform.translation.y = 0
+            transform.translation.z = 0
+            transform.rotation.x = 1
+            transform.rotation.y = 0
+            transform.rotation.z = 0
+            transform.rotation.w = -1
+
+            #have to populate something in the quaternion, so it's not all nans
+
+            response = tf_updater(child=child_frame_id,parent= homing_frame_id,transform = transform)
+
+            #print(transform)
+            #print(str(grid) + " " + str(bstate[grid])),
+
+
 def run_board_state():
     global state
     while not rospy.is_shutdown():
+        #print("foo1")
         state = determine_board_state()
+        #print("foo2")
         
         #print(state)
 
         print_board_state(state)
 
-        rospy.sleep(0.50)
+        #print("foo3")
+        update_tf_frames(state)
+
+        #print("foo4")
+        #ok, now, i need to go through my board state for 
+
+        time.sleep(0.50)
 
         print("")
 
@@ -297,11 +368,16 @@ def service_handle(data):
 def init():
     global listener
     global rate
+    global tf_updater
 
     listener = tf.TransformListener()
     rate = rospy.Rate(10.0)
 
-    s = rospy.Service('board_state', board_state, service_handle)
+    s = rospy.Service('board_state', tag_persistance, service_handle)
+
+    rospy.wait_for_service('new_tf_frames')
+    tf_updater = rospy.ServiceProxy('new_tf_frames',tag_persistance)
+
     print("Ready to give out board state")
 
     #have to give it a bit of time to see the AR tags.
