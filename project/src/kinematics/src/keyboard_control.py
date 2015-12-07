@@ -73,7 +73,7 @@ def keyboard_ctrl():
         curses.cbreak()
         curses.curs_set(0)
         screen.keypad(1)
-        screen.nodelay(1)
+        screen.nodelay(0)
 
         while True:
 
@@ -142,7 +142,6 @@ def keyboard_ctrl():
 
                 print(str(response) + "\n\r")
 
-            time.sleep(0.2)
             
     finally:
         screen.keypad(0)
@@ -240,7 +239,8 @@ if __name__ == '__main__':
         else:
             target_tf_Frame = sys.argv[1]
             listener(target_tf_Frame)
-            time.sleep(5)
             keyboard_ctrl()
     else:
+        print("here we go!")
+        time.sleep(5)
         keyboard_ctrl()

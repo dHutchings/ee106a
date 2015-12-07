@@ -43,7 +43,7 @@ Flags:
 rbt = None
 last_seen = time.time()
 
-
+homing_marker = 'ar_marker_63'
 
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
@@ -74,12 +74,12 @@ def callback(data):
     #print("callback run \n\r")
 
     #right now, hardcoded to look out for AR_Marker_63.  This may not be the world's greatest Idea...
-    if tf_listener.frameExists('ar_marker_63'):
+    if tf_listener.frameExists(homing_marker):
 
         now = rospy.Time.now()
         #tf_listener.waitForTransform('ar_marker_63','left_gripper',now,rospy.Dure)
         try:
-            (trans,rot) = tf_listener.lookupTransform('ar_marker_63','base',tim)
+            (trans,rot) = tf_listener.lookupTransform(homing_marker,'base',tim)
             
             trans = trans
             rot = rot
@@ -106,36 +106,47 @@ def callback(data):
             #print("error with the update \n\r")
             pass
 
-def get_pose(limb):
-    pose = {}
+def service_setup():
+    s = rospy.Service('closed_loop', closed_loop_request, service_handle)
+    print "Ready to recieve closed loop instructions"
 
-    while len(pose) is 0:
-        #sometimes, i'm getting empty poses.  don't know why, but this should take care of it.
-        pose = limb.endpoint_pose()
-        #print(pose)
-        time.sleep(.01)
 
-    pose = {'rot': list(pose['orientation']), 
-            'trans' : list(pose['position'])}
 
-    return pose
+def service_handle(data):
+    print(data)
+
+    global homing_marker
+
+    if data.operation == "pick":
+        #assume that i've already been moved to the appropriate location
+        homing_marker = data.homing_tf_frame
+        destination =data.target_tf_frame
+        #so i have time to see the AR_tag
+        time.sleep(2)
+        closed_loop_pick(destination)
+
+
+
+    return "I should have done something intelligent"
+
 
 def closed_loop_pick(destination='othello_piece',):
     #assume that i'm already close.
     global tf_listener
     global last_seen
 
-
     while True:
 
         execute = True
-        exit = raw_input("E to quit.  D for dist to target. Otherwise, i'll move to 0 \n\r")
+        exit = raw_input("E to quit.  D for dist to target. B to break Otherwise, i'll move to 0 \n\r")
 
         if (exit == 'e') or (exit == 'E'):
             rospy.signal_shutdown("Shutdown signal recieved")
             return
         elif(exit == 'd') or (exit == 'D'):
             execute = False
+        elif(exit == 'B') or (exit == 'b'):
+            break 
 
         try:
             #now = rospy.Time.now()
@@ -216,12 +227,16 @@ def closed_loop_pick(destination='othello_piece',):
                     movement_server = rospy.ServiceProxy('low_level_arm', kinematics_request)
                     response = movement_server(trans=[0,0,0.1],incrimental='True',grip = grip)
                     print(response)
+                    break
 
         
 # Initializes listener for the TF and then closed_loop_pick
 def init():
     listener('/tf')
-    closed_loop_pick()
+    service_setup()
+
+    rospy.spin()
+    #closed_loop_pick()
 
 
 if __name__ == '__main__':
