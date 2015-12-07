@@ -3,6 +3,7 @@ import sys
 import argparse
 import rospy
 import baxter_interface
+import Image, ImageDraw, ImageFont
 from std_msgs.msg import String
 from transitions import Machine
 from kinematics.srv import *
@@ -11,6 +12,9 @@ global printstream
 
 check_launch = True
 is_quiet = False
+
+char_to_int = {'a':0, 'b':1, 'c':2, 'd':3,
+               'e':4, 'f':5, 'g':6, 'h':7}
 
 class PenteFSM(object):
 
@@ -48,7 +52,6 @@ class PenteFSM(object):
         cmd = self.command[0]
         if self.state == 'startup':
             self.startup_done()
-            self.nod_head()
         elif cmd == 'c':
             print_to_stream("Given keyboard error signal.")
             self.to_error()
@@ -78,60 +81,72 @@ class PenteFSM(object):
             self.mv_done()
             self.flush_cmd()
         else:
-            print_to_stream(str(self.state))
+            if not is_quiet:
+                print_to_stream(str(self.state))
 
     def startup_done_cb(self):
         print_to_stream("Ready to play!")
+        self.nod_head()
 
     def game_over_cb(self):
         print_to_stream("Ending game...")
+        self.nod_head()
         rospy.signal_shutdown("Clean shutdown")
 
     def board_ready_cb(self):
         print_to_stream("Getting board state information")
         self.nod_head()
-        self.boardState = boardGeometrySrv()
 
-    def print_to_head(self):
-        pass
-
-    def nod_head(self):
-        self.head.command_nod()
+        boardStatemsg = boardGeometrySrv("GIMME YOUR INFO")
+        self.boardState = eval(boardStatemsg)
 
     def state_ready_cb(self):
-        pickupSquare = self.command[1]
-        dropoffSquare = self.command[2]
+        pickupSquare = eval(self.command[1])
+        dropoffSquare = eval(self.command[2])
         self.targetPoints = []
         # Arm moves to high-y start point
-        self.targetPoints.append(('low', self.originPoint))
+        self.targetPoints.append(('low_ng', self.originPoint))
 
         # Arm uses closed loop control to go to pickup location
-        self.targetPoints.append(('high', getBoardRBT(targetSquare)))
+        infoTuple = self.boardState[pickupSquare]
+        self.targetPoints.append(('high', infoTuple[1], infoTuple[2]))
 
         # Arm moves back to origin point
-        self.targetPoints.append(('low', self.originPoint))
+        self.targetPoints.append(('low_wg', self.originPoint))
 
         # Arm uses closed loop control to go to dropoff location
-        self.targetPoints.append(('high', getBoardRBT(dropoffSquare)))
+        infoTuple = self.boardState[dropoffSquare]
+        self.targetPoints.append(('high', infoTuple[1], infoTuple[2]))
 
     def mv_ready_cb(self):
-        for instruction in self.targetPoints:
-            if instruction[0] == 'low':
-                result = lowLevelSrv()
-            elif instruction[0] == 'high':
-                result = closedLoopSrv()
+        for inst in self.targetPoints:
+            if inst[0] == 'low_ng':
+                result = lowLevelSrv(target_rans=inst[1]['trans'], target_rot=inst[1]['rot'], 
+                                     grip='False', keep_orient='False')
+            elif inst[0] == 'low_wg':
+                result = lowLevelSrv(target_rans=inst[1]['trans'], target_rot=inst[1]['rot'], 
+                                     grip='True', keep_orient='False')
+            elif inst[0] == 'high':
+                result = closedLoopSrv(inst[1], inst[2], "pick")
 
-            if result != True:
-                print_to_stream("FAILED INSTRUCTION: "+str(instruction))
-                self.to_error()
+            # if result != True:
+            #     print_to_stream("FAILED INSTRUCTION: "+str(inst))
+            #     self.to_error()
 
     def mv_done_cb(self):
         result = lowLevelSrv()
-        if result != True:
-            print_to_stream("FAILED INSTRUCTION: <return to standy position>")
-            self.to_error()
+        # if result != True:
+        #     print_to_stream("FAILED INSTRUCTION: <return to standy position>")
+        #     self.to_error()
+        self.nod_head()
         self.to_standby()
 
+    def print_to_head(self):
+        boardstr = printBoard(self.boardState)
+        # This is really complicated :(
+
+    def nod_head(self):
+        self.head.command_nod()
 
     def flush_cmd(self):
         self.command = self.nullCmd
@@ -146,9 +161,15 @@ def print_to_stream(statement):
 
     printstream.publish(data=statement)
 
-def getBoardRBT(location):
+def getBoardRBT(board, location):
     return location
 
+def printBoard(board):
+    arr = [[[] for j in range(8)] for i in range(8)]
+    for char, num in board.keys():
+        if char in char_to_int:
+            arr[char_to_int[char]][num] = board[(char, num)][0]
+    return arr
 
 def main():
     global printstream
