@@ -1,0 +1,10 @@
+float32[] trans
+float32[] rot
+string grip
+string incrimental
+string change_height
+string keep_orient
+float32[] target_trans
+float32[] target_rot
+---
+string success
