@@ -8,9 +8,12 @@
   <arg name="output_frame" default="/head_camera" />
   <arg name="mname" default="head_camera" />
 
+
   <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
 
+  <arg name="artag" default="ar_marker_3" />
 
+  <node name="headcam" pkg="headcam" type="headcam.py" args= "$(arg artag)"/>
 
 </launch>
 
