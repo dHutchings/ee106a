@@ -75,3 +75,5 @@ loc_to_marker = {
 }
 
 marker_to_loc = invert_dictionary(loc_to_marker)
+
+list_of_board_markers = loc_to_marker.values()
