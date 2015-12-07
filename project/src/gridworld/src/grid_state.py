@@ -2,12 +2,10 @@
 import tf
 import rospy
 import sys
-import math
-import numpy as np
+
 from tf2_msgs.msg import TFMessage
+
 from geometry_msgs.msg import Transform, Vector3
-import kin_func_skeleton as kfs
-import exp_quat_func as eqf
 import os
 
 
@@ -87,9 +85,25 @@ def project_onto_plane(point):
 
     return q_proj
 
+def print_board_state(game_state):
+    #print list of positions that have othello pieces, and their assosiated tuple
+    #then, print_board
+
+
+    for grid in game_state.keys():
+        if game_state[grid][1] is not None:
+            print(str(grid) + " " + str(game_state[grid])),
+
+    print("")
+    print_board(game_state)
+
+    print("--------------------------------------------------------")
+
+
+
 def print_board(game_state):
     #http://stackoverflow.com/questions/22104920/how-do-i-print-a-grid-from-a-list-of-lists-with-numbered-rows-and-columns
-    print(game_state)
+    #print(game_state)
 
     print("    "),
     for i in grid_identifiers[0]:
@@ -147,8 +161,6 @@ def get_nearby_locs(pos,itr):
         nearby_locs = get_adjacent_cells(x,y,grid_size[0],grid_size[1],2*itr - 1)
 
     nearby_locs = list(nearby_locs)
-
-    print(nearby_locs)
 
     for i in range(len(nearby_locs)):
         loc = nearby_locs[i]
@@ -234,7 +246,7 @@ def determine_board_state():
             #print("Count is " + str(count))
             nearby_locs = get_nearby_locs(pos,count)
 
-            print(nearby_locs)
+            #print(nearby_locs)
 
             #print("")
             #print("")
@@ -270,7 +282,7 @@ def run_board_state():
         
         #print(state)
 
-        print_board(state)
+        print_board_state(state)
 
         rospy.sleep(0.50)
 
