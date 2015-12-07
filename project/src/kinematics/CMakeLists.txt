@@ -103,11 +103,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES kinematics
-<<<<<<< HEAD
-#  CATKIN_DEPENDS other_catkin_pkg
-=======
 #  CATKIN_DEPENDS roscpp rospy std_msgs
->>>>>>> origin/shiv
 #  DEPENDS system_lib
 )
 
@@ -118,12 +114,9 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-<<<<<<< HEAD
-=======
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
->>>>>>> origin/shiv
 
 ## Declare a C++ library
 # add_library(kinematics
