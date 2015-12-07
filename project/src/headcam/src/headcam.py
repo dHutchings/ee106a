@@ -7,6 +7,9 @@ from moveit_msgs.msg import OrientationConstraint, Constraints
 from geometry_msgs.msg import PoseStamped
 import numpy as np
 
+import roslib
+import rospy
+
 from tf2_msgs.msg import TFMessage
 import tf
 import time
@@ -39,7 +42,13 @@ Flags:
 rbt = None
 last_seen = time.time()
 
+import tf
 
+global ar_marker
+  
+def handle_turtle_pose(msg, turtlename):
+    br = tf.TransformBroadcaster()
+    br.sendTransform((msg.x, msg.y, 0), tf.transformations.quaternion_from_euler(0, 0, msg.theta), rospy.Time.now(), turtlename, "world")
 
 def listener(tf_topic):
     #sets up listener to the TF topic, which listens to TF Messages, and calls a callback
@@ -49,13 +58,8 @@ def listener(tf_topic):
     print("topic is " + str(tf_topic))
 
     rospy.Subscriber(tf_topic,TFMessage,callback)
-    headpub = rospy.Publisher(tf_topic,TFMessage)
-  
-
     global tf_listener
-
     tf_listener = tf.TransformListener()
-
 
     print("Construction of listener completed")
 
@@ -74,29 +78,45 @@ def callback(data):
     frame_id = tim.header.frame_id
     child_frame = tim.child_frame_id
     translations = tim.transform.translation
+    quaternion = tim.transform.rotation
     tim = tim.header.stamp
 
-
+    # print child_frame
 
     #print("callback run \n\r")
 
     #right now, hardcoded to look out for AR_Marker_63.  This may not be the world's greatest Idea...
-    if  tf_listener.frameExists('ar_marker_8') & (child_frame=='ar_marker_8'):
+    if  (child_frame==ar_marker):
         now = rospy.Time.now()
-
         #tf_listener.waitForTransform('ar_marker_63','left_gripper',now,rospy.Dure)
         try:
+            print "orig vals"
+            print(data)
+
+            #print translations.x
+            #print translations.y
             ndata = data
             ndata.transforms[0].transform.translation.x = -translations.x
             ndata.transforms[0].transform.translation.y = -translations.y
-            ndata.transforms[0].child_frame_id = "YourMother"
-            headpub.publish(ndata)
-            #bring this down to 5hz, the camera rate.  I don't wanna kill the processor on this...
-            #time.sleep(0.2)
+            ndata.transforms[0].transform.rotation.x = -quaternion.x
+            ndata.transforms[0].transform.rotation.y = -quaternion.y
+            ndata.transforms[0].child_frame_id = "/your_mother"
+            print "new vals"
+            #print ndata.transforms[0].transform.translation.x
+            #print ndata.transforms[0].transform.translation.y
+
+            print ndata
+
         #time0 asks for the most recent one
         except:
             #print("error with the update \n\r")
             pass
+
+        br = tf.TransformBroadcaster()
+        br.sendTransform((ndata.transforms[0].transform.translation.x, ndata.transforms[0].transform.translation.y, ndata.transforms[0].transform.translation.z), 
+        (-quaternion.x, -quaternion.y, quaternion.z, quaternion.w), 
+        rospy.Time.now(),
+        ar_marker + "n", "head_camera")
 
 
 
@@ -115,34 +135,34 @@ def get_pose(limb):
     return pose
 
         
-def talker(tf_topic):
-  #Run this program as a new node in the ROS computation graph 
-  #called /talker.
-  print("Initializing node... ")
-  rospy.init_node("headpub")
-  print("topic is " + str(tf_topic))
+# def talker(tf_topic):
+#   #Run this program as a new node in the ROS computation graph 
+#   #called /talker.
+#   print("Initializing node... ")
+#   rospy.init_node("headpub")
+#   print("topic is " + str(tf_topic))
 
 
-  #Create an instance of the rospy.Publisher object which we can 
-  #use to publish messages to a topic. This publisher publishes 
-  #messages of type std_msgs/String to the topic /chatter_talk
-  pub = rospy.Publisher(tf_topic,TFMessage)
+#   #Create an instance of the rospy.Publisher object which we can 
+#   #use to publish messages to a topic. This publisher publishes 
+#   #messages of type std_msgs/String to the topic /chatter_talk
+#   pub = rospy.Publisher(tf_topic,TFMessage)
   
-  # Create a timer object that will sleep long enough to result in
-  # a 10Hz publishing rate
-  r = rospy.Rate(10) # 10hz
+#   # Create a timer object that will sleep long enough to result in
+#   # a 10Hz publishing rate
+#   r = rospy.Rate(10) # 10hz
 
-  print("Construction opf talker completed")
-  # Loop until the node is killed with Ctrl-C
-  while not rospy.is_shutdown():
-        if shift:
+#   print("Construction opf talker completed")
+#   # Loop until the node is killed with Ctrl-C
+#   while not rospy.is_shutdown():
+#         if shift:
     
-            # Publish our data to the 'chatter_talk' topic
-            pub.publish(ndata)
-            shift=False
+#             # Publish our data to the 'chatter_talk' topic
+#             pub.publish(ndata)
+#             shift=False
     
-        # Use our rate object to sleep until it is time to publish again
-        r.sleep()
+#         # Use our rate object to sleep until it is time to publish again
+#         r.sleep()
         
 # This is Python's sytax for a main() method, which is run by default
 # when exectued in the shell
@@ -153,8 +173,13 @@ def init():
     listener('/tf')
 
 
+
 if __name__ == '__main__':
-  try:
-    talker('/tf')
+  global ar_marker
+  if (len(sys.argv) is not 2) and (len(sys.argv) is not 4):
+    print len(sys.argv)
+    print "error"
+    print sys.argv
+  else:
+    ar_marker = sys.argv[1]
     init()
-  except rospy.ROSInterruptException: pass
