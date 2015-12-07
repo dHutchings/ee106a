@@ -14,6 +14,7 @@ import os
 from pieces import all_tags
 import time
 from board_geometry import *
+from gridworld.srv import *
 
 
 
@@ -26,7 +27,7 @@ grid_identifiers = [['A','B','C','D','E','F','G','H'],[1,2,3,4,5,6,7,8]]
 grid_meas = [27.3,21.5]
 square_size = 0.027 #square size in m.
 
-
+state = None #initial board state.
 
 def list_all_visible_ARtags(listener):
     lis = listener.allFramesAsString();
@@ -262,45 +263,52 @@ def determine_board_state():
 
     return board_state
 
+def run_board_state():
+    global state
+    while not rospy.is_shutdown():
+        state = determine_board_state()
+        
+        #print(state)
 
+        print_board(state)
 
-def init(number):
-    global origin
+        rospy.sleep(0.50)
+
+        print("")
+
+def service_handle(data):
+    #I don't care about data for now.
+
+    return str(state)
+    #return the dictionary board state as a string
+
+def init():
     global listener
     global rate
 
-    origin = 'ar_marker_' + str(number)
     listener = tf.TransformListener()
     rate = rospy.Rate(10.0)
 
+    s = rospy.Service('board_state', board_state, service_handle)
+    print("Ready to give out board state")
+
+    #have to give it a bit of time to see the AR tags.
+    time.sleep(3)
+    run_board_state()
     #todo: Setup service!.
 
 
 if __name__=='__main__':
     print("HELLO WORLD!")
     rospy.init_node('ar_tags_subs')
-    if len(sys.argv) < 2:
-        print('Use: grid_world.py [Origin number]')
+    if len(sys.argv) > 1:
+        print('Use: grid_world.py')
         sys.exit()
     else:
-        init(sys.argv[1])
+        init()
 
-        time.sleep(3)
         #remove later.
-        while not rospy.is_shutdown():
-            state = determine_board_state()
-            
-            #print(state)
 
-            #time.sleep(1)
-
-            #print("")
-
-            print_board(state)
-
-            rospy.sleep(0.50)
-
-            print("")
 
 
 
