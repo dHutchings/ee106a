@@ -59,8 +59,6 @@ def keyboard_ctrl():
     global rot
 
     print("We should be running now")
-    time.sleep(5)
-
     screen = curses.initscr()
 
 
@@ -76,8 +74,6 @@ def keyboard_ctrl():
         screen.nodelay(0)
 
         while True:
-
-            print("loop")
 
             #moved inside while so dynamic updates to inc_var can propigate
 

@@ -2,6 +2,7 @@
 import sys
 import argparse
 import rospy
+import baxter_interface
 from std_msgs.msg import String
 from transitions import Machine
 from kinematics.srv import *
@@ -19,7 +20,8 @@ class PenteFSM(object):
     states = ['startup', 'standby', 'eval_board', 'mk_move',
               'exec_move', 'reset_pos', 'terminate', 'error']
     transitions = [
-        {'trigger':'startup_done', 'source':'startup', 'dest':'standby'},
+        {'trigger':'startup_done', 'source':'startup', 'dest':'standby',
+            'before':'startup_done_cb'},
         {'trigger':'game_over', 'source':'standby', 'dest':'terminate', 
             'after':'game_over_cb'},
         {'trigger':'board_ready', 'source':'standby', 'dest':'eval_board',
@@ -33,25 +35,27 @@ class PenteFSM(object):
         {'trigger':'wait_for_player', 'source':'reset_pos', 'dest':'standby'},
     ]
 
-    def __init__(self):
+    def __init__(self, head):
         self.machine = Machine(model=self,
                                states=PenteFSM.states,
                                transitions=PenteFSM.transitions,
                                initial='startup',
                                auto_transitions=True)
         self.command = self.nullCmd
+        self.head = head
 
     def update_state(self):
         cmd = self.command[0]
         if self.state == 'startup':
             self.startup_done()
+            self.nod_head()
         elif cmd == 'c':
             print_to_stream("Given keyboard error signal.")
             self.to_error()
-            flush_cmd()
+            self.flush_cmd()
         elif self.state == 'error' and cmd == 'reset':
             self.to_standby()
-            flush_cmd()
+            self.flush_cmd()
         elif self.state == 'standby' and cmd == 'end':
             # Callback: Terminates game
             self.game_over()
@@ -74,18 +78,25 @@ class PenteFSM(object):
             self.mv_done()
             self.flush_cmd()
         else:
-            pass
+            print_to_stream(str(self.state))
+
+    def startup_done_cb(self):
+        print_to_stream("Ready to play!")
 
     def game_over_cb(self):
         print_to_stream("Ending game...")
-        rospy.shutdown_signal("Clean shutdown")
+        rospy.signal_shutdown("Clean shutdown")
 
     def board_ready_cb(self):
         print_to_stream("Getting board state information")
+        self.nod_head()
         self.boardState = boardGeometrySrv()
 
     def print_to_head(self):
         pass
+
+    def nod_head(self):
+        self.head.command_nod()
 
     def state_ready_cb(self):
         pickupSquare = self.command[1]
@@ -126,27 +137,28 @@ class PenteFSM(object):
         self.command = self.nullCmd
 
     def handle_keyboard(self, msg):
-        print_to_stream("recieved command: "+str(msg))
-        self.command = str(msg).split()
+        print_to_stream("recieved command: "+str(msg.data))
+        self.command = str(msg.data).split()
 
 
 def print_to_stream(statement):
     global printstream
 
-    print(statement)
     printstream.publish(data=statement)
 
 def getBoardRBT(location):
     return location
 
+
 def main():
     global printstream
-
-    fsm = PenteFSM()
 
     print("Initializing node...")
     rospy.init_node("pente_ctrl")
     r = rospy.Rate(10)
+
+    h = baxter_interface.Head()
+    fsm = PenteFSM(head=h)
     
     print("Initializing status feed...")
     printstream = rospy.Publisher('/pente_ctrl/status', String, queue_size=10)
@@ -162,9 +174,9 @@ def main():
     rospy.wait_for_service("low_level_arm")
     lowLevelSrv = rospy.ServiceProxy('low_level_arm', kinematics_request)
 
-    print("Connecting to board geometry service...")
-    rospy.wait_for_service("board_geometry")
-    boardGeometrySrv = rospy.ServiceProxy('board_geometry')
+    # print("Connecting to board geometry service...")
+    # rospy.wait_for_service("board_geometry")
+    # boardGeometrySrv = rospy.ServiceProxy('board_geometry')
 
     # print("Initializing head_image feed...")
     # headImg = rospy.Publisher('pente_ctrl/head_image', image)
