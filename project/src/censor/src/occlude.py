@@ -16,12 +16,14 @@ import time
 
 latch = False
 
-overlap = 100 #overlap the images by 100 pixels.
-x_splits = 3
+
+#the next three variables are tuning parameters.
+overlap = 100 #overlap the non-censored areas by N pixels.  This is so an AR tag on the border doesn't get cut.  IN pratice, set to the largest size an AR tag will be in the FOV
+x_splits = 3 #of splits of the image in x,y
 y_splits = 2
 
 
-def censor_image(image,xmin,xmax,ymin,ymax,publisher):
+def censor_image(image,xmin,xmax,ymin,ymax,publisher,frame_id):
     #censors the image to just the area between x/y min/max.
     #also publishes the thing, using the publisher that is given to it.  (There's many... muhahaha)
     
@@ -38,6 +40,9 @@ def censor_image(image,xmin,xmax,ymin,ymax,publisher):
     #convert back to ros image
     image_out = bridge.cv2_to_imgmsg(new_image, encoding="rgb8")
 
+    print(dir(image_out))
+    image_out.header.frame_id = frame_id
+
     #and publish it.
     publisher.publish(image_out)
 
@@ -46,6 +51,8 @@ def callback(data):
 
     #print("I've censored another image!")
     old_time = time.time()
+
+    frame_id = data.header.frame_id #need this frame ID so TF can work properly
 
     #convert ros image to open cv image.
     cv_image = bridge.imgmsg_to_cv2(data, desired_encoding="passthrough")
@@ -100,19 +107,7 @@ def callback(data):
             #get the right publisher
             publisher = pubs[pub_number]
 
-            censor_image(cv_image,x_left,x_right,y_top,y_bot,publisher)
-
-            #print(str(xpts[x]) +' ' + str(ypts[y]))
-
-            #print("Bottom left:")
-            #print(str(xpts[x+1]) +' ' + str(ypts[y+1]))
-
-    #ok, need to calculate my split points..
-
-    #print('starting censoring! ')
-
-    
-
+            censor_image(cv_image,x_left,x_right,y_top,y_bot,publisher,frame_id)
     
     print('Ive sensored another image! ' + str(time.time() - old_time))
     
@@ -130,12 +125,15 @@ def listener():
     #initliaze the array of publishers... this is gonna get insane.
     pubs = []
 
+    #make lots of publishers.  It's a global, so the callback can get to it.
     for i in range(0,x_splits*y_splits):
         pubs.append(rospy.Publisher('/censored/image_raw'+str(i), Image, queue_size=10))
+
+    #and here's my subscriber, which will listen on the line below.  This should really be made a command line argument.
     rospy.Subscriber("/usb_cam/image_raw", Image, callback)
 
 
-    # spin() simply keeps python from exiting until this node is stopped
+    # spin() simply keeps python from exiting until this node is stopped.  Callbacks will automagically continue
     rospy.spin()
 
 
