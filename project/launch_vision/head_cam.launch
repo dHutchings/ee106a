@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="marker_size" default="4.7" />
+  <arg name="marker_size" default="12" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/cameras/head_camera/image" />
@@ -10,7 +10,13 @@
 
 
 
-  <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
+
+  <arg name="resolution" default = "--resolution 1280x800" />
+  <arg name="open" default = "--open head_camera" />
+
+  <node name="head_cam_res" pkg = "baxter_tools" type="camera_control.py" args="$(arg open) $(arg resolution)" />
+
+  <node name="ar_track_alvar_head" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
 
   <arg name="artag" default="ar_marker_0" />
 
