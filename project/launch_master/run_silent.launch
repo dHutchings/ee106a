@@ -62,7 +62,7 @@
 <node name="controller" pkg="ctrl" type="pente_ctrl.py" />
 
 <!-- Static Transforms can go at the end.  This places suction cup appropriately -->
-<node pkg="tf" type="static_transform_publisher" name="suck_cup_adjuster" args = "0 0 0.086875 0 0 0 left_gripper suction_cup 100" />
+<node pkg="tf" type="static_transform_publisher" name="suck_cup_adjuster" args = "-0.0018 0 0.087 0 0 0 left_gripper suction_cup 100" />
 <!-- starts the 'handoff point' -->
 <node pkg="tf" type="static_transform_publisher" name="handoff_point" args = "0.1651 -0.254 0.3048 0 0 0 ar_marker_0n handoff_point 100" />
 
