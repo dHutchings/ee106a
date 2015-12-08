@@ -101,9 +101,6 @@ class PenteFSM(object):
         print_to_stream("Getting board state information")
         self.nod_head()
 
-        boardStatemsg = boardStateSrv("GIMME YOUR INFO")
-        self.boardState = eval(boardStatemsg)
-
     def state_ready_cb(self):
         # Move sequence for closed-loop pickup and dropoff
 
@@ -167,6 +164,9 @@ class PenteFSM(object):
         print_to_stream("recieved command: "+str(msg.data))
         self.command = str(msg.data).split()
 
+    def handle_board_state(self, msg):
+        self.boardState = eval(msg.data)
+
 
 def print_to_stream(statement):
     global printstream
@@ -212,11 +212,10 @@ def main():
     rospy.wait_for_service("low_level_arm")
     lowLevelSrv = rospy.ServiceProxy('low_level_arm', kinematics_request)
 
-    print_to_stream("Connecting to board state service...")
-    rospy.wait_for_service("board_geometry")
-    boardStateSrv = rospy.ServiceProxy('board_geometry')
+    print_to_stream("Initializing board state input...")
+    rospy.Subscriber("pente_ctrl/board_state", String, fsm.handle_board_state)
 
-    print_to_stream("Connecting to TransSrv servoce...")
+    print_to_stream("Connecting to TransSrv service...")
     rospy.wait_for_service("new_tf_frames")
     newTFSrv = tf.TransformListener()
 
