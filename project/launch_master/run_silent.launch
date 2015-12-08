@@ -1,0 +1,71 @@
+<launch>
+
+<!-- enable robot -->
+<node pkg="baxter_tools" type="enable_robot.py" name="enable_robot" args ="-e"/>
+
+<!-- move head to zero -->
+<node pkg="ctrl" type="set_head_pan.py" name="head_pan" args = "0" />
+
+<node pkg="baxter_interface" type = "joint_trajectory_action_server.py" name = "trajectory_server" />
+
+<!-- Next two includes take the place of baxter_moveit_noexec... -->
+  <include file="$(find baxter_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="true"/>
+  </include>
+
+  <include file="$(find baxter_moveit_config)/launch/move_group.launch">
+    <arg name="allow_trajectory_execution" value="false"/>
+  </include>
+
+<!-- low_level_arm_controller -->
+<node pkg="kinematics" type = "low_lv_arm_controller.py" name = "low_lv_controller" />
+
+
+<!-- Next through the headcam brings up the headcamera, and takes the place of headcam.launch -->
+  <arg name="marker_size" default="4.7" />
+  <arg name="max_new_marker_error" default="0.08" />
+  <arg name="max_track_error" default="0.2" />
+  <arg name="cam_image_topic" default="/cameras/head_camera/image" />
+  <arg name="cam_info_topic" default="/cameras/head_camera/camera_info" />
+  <arg name="output_frame" default="/head_camera" />
+  <arg name="mname" default="head_camera" />
+
+
+
+  <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
+
+  <arg name="artag" default="ar_marker_0" />
+
+  <node name="headcam" pkg="headcam" type="headsub.py" args= "$(arg artag)"/>
+
+<!-- Left_wrist.launch -->
+
+  <arg name="marker_size_L" default="1.778" />
+  <arg name="max_new_marker_error_L" default="0.08" />
+  <arg name="max_track_error_L" default="0.2" />
+  <arg name="cam_image_topic_L" default="/cameras/left_hand_camera/image" />
+  <arg name="cam_info_topic_L" default="/cameras/left_hand_camera/camera_info_std" />
+  <arg name="output_frame_L" default="/left_hand_camera" />
+  <arg name="mname_L" default="left_hand_camera" />
+
+  <arg name="max_freq_L" default="5" />
+
+
+  <arg name="resolution" default = "--resolution 1280x800" />
+  <arg name="open" default = "--open left_hand_camera" />
+
+  <node name="left_cam_res" pkg = "baxter_tools" type="camera_control.py" args="$(arg open) $(arg resolution)" />
+
+  <node name="ar_track_alvar_L" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size_L) $(arg max_new_marker_error_L) $(arg max_track_error_L) $(arg cam_image_topic_L) $(arg cam_info_topic_L) $(arg output_frame_L) $(arg max_freq_L)" />
+
+<!-- pente controll -->
+<node name="controller" pkg="ctrl" type="pente_ctrl.py" />
+
+<!-- Static Transforms can go at the end.  This places suction cup appropriately -->
+<node pkg="tf" type="static_transform_publisher" name="suck_cup_adjuster" args = "0 0 0.086875 0 0 0 left_gripper suction_cup 100" />
+<!-- starts the 'handoff point' -->
+<node pkg="tf" type="static_transform_publisher" name="handoff_point" args = "0.1651 -0.254 0.3048 0 0 0 ar_marker_0n handoff_point 100" />
+
+
+
+</launch>

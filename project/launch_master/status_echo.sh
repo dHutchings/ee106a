@@ -1,0 +1,1 @@
+rostopic echo pente_ctrl/status

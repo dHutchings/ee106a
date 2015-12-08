@@ -229,14 +229,17 @@ def get_pose(limb):
 if __name__ == '__main__':
     print(len(sys.argv))
 
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '-h':
-            print(usage_str)
+    if len(sys.argv) != 3:
+        if len(sys.argv) > 1:
+            if sys.argv[1] == '-h':
+                print(usage_str)
+            else:
+                target_tf_Frame = sys.argv[1]
+                listener(target_tf_Frame)
+                keyboard_ctrl()
         else:
-            target_tf_Frame = sys.argv[1]
-            listener(target_tf_Frame)
-            keyboard_ctrl()
+            print("here we go!")
+            keyboard_ctrl() 
     else:
         print("here we go!")
-        time.sleep(5)
         keyboard_ctrl()

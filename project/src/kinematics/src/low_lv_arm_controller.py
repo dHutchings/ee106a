@@ -293,7 +293,7 @@ def init_IK():
 
     print('Calibrating...')
     gripper.calibrate()
-    rospy.sleep(0.02)
+    rospy.sleep(0.2)
 
     # Shutdown callback
     def clean_shutdown():

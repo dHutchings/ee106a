@@ -9,8 +9,8 @@ from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 from transitions import Machine
 from kinematics.srv import *
-from headcam.srv import tag_persistence
-from board_geometry import loc_to_marker, marker_to_loc
+from headcam.srv import *
+#from board_geometry import loc_to_marker, marker_to_loc
 
 global printstream
 
@@ -233,6 +233,7 @@ def main():
 
 
 if __name__ == '__main__':
+    '''
     parser = argparse.ArgumentParser(description="The One Pente Controller to rule them all.")
     parser.add_argument('-f', '--force', help="start pente_ctrl without running launch checks.",
                                          action='store_true')
@@ -244,4 +245,5 @@ if __name__ == '__main__':
     if args.quiet:
         is_quiet = True
 
+    '''
     main()

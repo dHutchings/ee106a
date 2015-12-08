@@ -235,12 +235,16 @@ def init():
     listener('/tf')
     service_setup()
 
+    while(True):
+        closed_loop_pick()
+        print("SUCCESS!")
+
     rospy.spin()
     #closed_loop_pick()
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
+    if (len(sys.argv) == 1) or(len(sys.argv) == 3):
         init()
     elif sys.argv[1] == '-h':
         print(usage_str)
