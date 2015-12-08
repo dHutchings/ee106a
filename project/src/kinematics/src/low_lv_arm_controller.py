@@ -313,7 +313,7 @@ def maintain_gripper():
     while not rospy.is_shutdown():
         #so I hold the gripper on or off, as appropriate
         actuate_gripper(gripper_status)
-        time.sleep(.2) #update at 5 Hz
+        time.sleep(.02) #update at 5 Hz
 
 
 if __name__ == '__main__':

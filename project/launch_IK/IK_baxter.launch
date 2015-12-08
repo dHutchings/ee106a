@@ -1,7 +1,7 @@
 <launch>
 
 <node pkg="tf" type="static_transform_publisher" name="ar_tag_adjuster" args = "0 -0.028575 0 0 0 0 ar_marker_63 othello_piece 100" />
-<node pkg="tf" type="static_transform_publisher" name="suck_cup_adjuster" args = "0 0 0.071 0 0 0 left_gripper suction_cup 100" />
+<node pkg="tf" type="static_transform_publisher" name="suck_cup_adjuster" args = "-0.0018 0 0.085 0 0 0 left_gripper suction_cup 100" />
 
 <node pkg="baxter_interface" type = "joint_trajectory_action_server.py" name = "trajectory_server" />
 
