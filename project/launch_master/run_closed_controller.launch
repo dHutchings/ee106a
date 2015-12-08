@@ -1,8 +1,0 @@
-<launch>
-
-
-<!-- closed_loop controller -->
-<node pkg="kinematics" type = "closed_loop.py" name = "closed_loop" />
-
-
-</launch>

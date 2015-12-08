@@ -199,22 +199,24 @@ def main():
     print("Initializing status feed...")
     printstream = rospy.Publisher('/pente_ctrl/status', String, queue_size=10)
 
-    print("Initializing keyboard input...")
+    rospy.sleep(5)
+
+    print_to_stream("Initializing keyboard input...")
     rospy.Subscriber('pente_ctrl/keyboard', String, fsm.handle_keyboard)
 
-    print("Connecting to closed_loop service...")
+    print_to_stream("Connecting to closed_loop service...")
     rospy.wait_for_service("closed_loop")
     closedLoopSrv = rospy.ServiceProxy('closed_loop', closed_loop_request)
 
-    print("Connecting to low_level_arm service...")
+    print_to_stream("Connecting to low_level_arm service...")
     rospy.wait_for_service("low_level_arm")
     lowLevelSrv = rospy.ServiceProxy('low_level_arm', kinematics_request)
 
-    print("Connecting to board state service...")
+    print_to_stream("Connecting to board state service...")
     rospy.wait_for_service("board_geometry")
     boardStateSrv = rospy.ServiceProxy('board_geometry')
 
-    print("Connecting to TransSrv servoce...")
+    print_to_stream("Connecting to TransSrv servoce...")
     rospy.wait_for_service("new_tf_frames")
     newTFSrv = tf.TransformListener()
 
@@ -222,9 +224,9 @@ def main():
     # headImg = rospy.Publisher('pente_ctrl/head_image', image)
 
 
-    print("Use pente_ctrl/keyboard topic to interface with pente_ctrl.")
-    print("Echo pente_ctrl/status topic to view debug info.")
-    print("Press CTRL+C to shutdown.")
+    print_to_stream("Use pente_ctrl/keyboard topic to interface with pente_ctrl.")
+    print_to_stream("Echo pente_ctrl/status topic to view debug info.")
+    print_to_stream("Press CTRL+C to shutdown.")
 
     while not rospy.is_shutdown():
         fsm.update_state()
