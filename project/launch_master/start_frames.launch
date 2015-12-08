@@ -1,0 +1,16 @@
+<launch>
+
+
+
+<node pkg="tf" type="static_transform_publisher" name="H8" args = "0 0.027 0.000787401 0 0 0 -1 ar_marker_56 piece_H_8 100" />
+<node pkg="tf" type="static_transform_publisher" name="H6" args = "0 0.027 0.000787401 0 0 0 -1 ar_marker_40 piece_H_6 100" />
+<node pkg="tf" type="static_transform_publisher" name="A3" args = "-0.027 0 0.000787401 0 0 0 -1 ar_marker_18 piece_A_3 100" />
+<node pkg="tf" type="static_transform_publisher" name="E6" args = "0 0.027 0.000787401 0 0 0 -1 ar_marker_37 piece_E_6 100" />
+<node pkg="tf" type="static_transform_publisher" name="G6" args = "0 0.027 0.000787401 0 0 0 -1 ar_marker_39 piece_G_6 100" />
+
+<node pkg="tf" type="static_transform_publisher" name="handoff_point" args = "0.1651 -0.254 0.3048 0 0 0 ar_marker_0n handoff_point 100" />
+
+<node pkg="tf" type="static_transform_publisher" name="dropoff_point" args = "0.41 -0.24 0.013 0 0 0 ar_marker_0n dropoff_point 100" />
+
+
+</launch>
