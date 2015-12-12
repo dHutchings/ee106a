@@ -1,16 +1,17 @@
 import sys
 import os
 import argparse
-import collections
+import math
 
 # TODO:
-# 1. Implement minimax agent
-# 2. Add everything else needed for playing game through terminal
-# 3. Implement alpha-beta pruning
-# 4. Refine state evaluation
+# 1. *Implement minimax agent
+# 2. *Add everything else needed for playing game through terminal
+# 3. *Implement alpha-beta pruning
+# 4. Memoize findRows,Cols,Diags and # pieces
 # 5. Add minimax search heuristic
+# 6. Refine state evaluation
 
-board_size = [8, 8]     # [WIDTH, HEIGHT] Caution: PenteState will likely break if not NxN
+board_size = [6, 6]     # [WIDTH, HEIGHT] Caution: PenteState will break if not NxN
 grid_labels = [
     [chr(j+65) for j in range(board_size[0])],
     [i+1 for i in range(board_size[1])]
@@ -25,15 +26,16 @@ piece = {
 class PenteState(object):
     initCaptured = {'WHITE':0, 'BLACK':0}
 
-    def __init__(self, captured=initCaptured, data=None, dataDict=None, whitesMove=False):
+    def __init__(self, captured=initCaptured, data=None, dataDict=None, whitesMove=True):
         if data == None and dataDict == None:
             self.data = [[piece['EMPTY'] for _ in range(board_size[0])] for _ in range(board_size[1])]
         elif dataDict == None:
-            self.data = data    # Note this is not a protected copy! Will improve runtime when generating new states.
+            self.data = list(data)
+            for j in range(len(data[0])): self.data[j] = list(data[j])
         elif data == None:
             self.data = [[piece['EMPTY'] for _ in range(board_size[0])] for _ in range(board_size[1])]
             for j, i in dataDict:
-                self.setGridValue(i-1, ord(j)-65, dataDict[(j, i)])
+                self[j, i] =  dataDict[(j, i)]
         else:
             raise ValueError("Missing/Illegal arguments for PenteState.")
 
@@ -46,10 +48,10 @@ class PenteState(object):
 
         for i in reversed(grid_labels[1]):
             state_str += ["".join([str(i)+"  "] + 
-                                  [" . " if self.getGridValue(i-1, j) == piece['EMPTY'] else 
-                                   " O " if self.getGridValue(i-1, j) == piece['WHITE'] else
+                                  [" . " if self[j, i] == piece['EMPTY'] else 
+                                   " O " if self[j, i] == piece['WHITE'] else
                                    " X "
-                                   for j in range(board_size[0])]
+                                   for j in grid_labels[0]]
                                  )]
 
         state_str += ["# WHITE PIECES CAPTURED: "+str(self.captured['WHITE'])]
@@ -60,30 +62,57 @@ class PenteState(object):
     def __repr__(self):
         return str(self)
 
-    def getGridValue(self, i, j):
-        return self.data[i][j]
+    def __getitem__(self, loc):
+        # Array coordinates, eg: (2, 0)
+        if type(loc[0]) == int and type(loc[1]) == int:
+            return self.data[loc[1]][loc[0]]
+        # Board coordinates, eg: ('A', 3)
+        elif type(loc[0]) == str and type(loc[1]) == int:
+            return self.data[ord(loc[0])-65][loc[1]-1]
+        else:
+            raise ValueError("Illegal getitem call: "+str(loc))
 
-    def setGridValue(self, i, j, val):
+    def __setitem__(self, loc, val):
         # Avoid using this, states should be immutable
-        self.data[i][j] = val
+        # Array coordinates, eg: (2, 0)
+        if type(loc[0]) == int and type(loc[1]) == int:
+            self.data[loc[1]][loc[0]] = val
+        # Board coordinates, eg: ('A', 3)
+        elif type(loc[0]) == str and type(loc[1]) == int:
+            self.data[ord(loc[0])-65][loc[1]-1] = val
+        else:
+            raise ValueError("Illegal setitem call: "+str(loc))
 
     def getNumCaptured(self, forWhite):
         return self.captured['WHITE'] if forWhite else self.captured['BLACK']
 
+    def generateSuccessor(self, action):
+        assert self[action[0], action[1]] == piece['EMPTY'], \
+               "Illegal Successor State attempted: "+str(action)
+
+        newState = PenteState(captured=self.captured, 
+                              data=self.data, 
+                              whitesMove=not self.whitesMove)
+        if self.whitesMove:
+            newState[action[0], action[1]] = piece['WHITE'] 
+        else:
+            newState[action[0], action[1]] = piece['BLACK']
+        return newState
+
     def findRowsAndColumns(self, forWhite):
         color = piece['WHITE'] if forWhite else piece['BLACK']
-        rows = collections.Counter()
-        cols = collections.Counter()
+        rows = [0 for _ in range(board_size[0])]
+        cols = [0 for _ in range(board_size[0])]
         for i in range(board_size[1]):
             nr, nc = 0, 0
             for j in range(board_size[0]):
-                if self.getGridValue(i, j) == color:
+                if self[i,j] == color:
                     nr += 1
                 else:
                     rows[nr] += 1
                     nr = 0
 
-                if self.getGridValue(j, i) == color:
+                if self[j,i] == color:
                     nc += 1
                 else:
                     cols[nc] += 1
@@ -92,27 +121,26 @@ class PenteState(object):
             cols[nc] += 1
 
         # Only rows count single runs during score evaluation
-        del rows[0], cols[0], cols[1]
-        return rows, cols
+        return [rows[n]+cols[n] for n in range(2,board_size[0])]
 
     def findDiagonals(self, forWhite):
         # Utelizes coordinate transform for iterating over diagonals:
         # <row, col> --> <diagonal base row, diagonal magnitude> :: <i,j> --> <p,q>
         # http://stackoverflow.com/a/6313407
         color = piece['WHITE'] if forWhite else piece['BLACK']
-        forwards = collections.Counter()
-        backwards = collections.Counter()
+        forwards = [0 for _ in range(board_size[0])]
+        backwards = [0 for _ in range(board_size[0])]
         N = board_size[0]
         for p in range(2*N-1):
             nf, nb = 0, 0
-            for q in range(max(0, p-N+1), min(p, N-1)):
-                if self.getGridValue(q, p-q) == color:
+            for q in range(max(0, p-N+1), min(p+1, N)):
+                if self[q, p-q] == color:
                     nf += 1
                 else:
                     forwards[nf] += 1
                     nf = 0
 
-                if self.getGridValue(N-1-q, p-q) == color:
+                if self[N-1-q, p-q] == color:
                     nb += 1
                 else:
                     backwards[nb] += 1
@@ -120,16 +148,40 @@ class PenteState(object):
             forwards[nf] += 1
             backwards[nb] += 1
 
-        del forwards[0], forwards[1]
-        del backwards[0], backwards[1]
-        return forwards + backwards
+        return [forwards[n] + backwards[n] for n in range(2,board_size[0])]
 
-    def getScore(self, forWhite):
+    def isLegalAction(self, action):
+        return self.getGridValue(action[0], action[1]) == piece['EMPTY']
+
+    def getLegalActions(self):
+        # Dunno if this is worth implementing
+        return [(i, j) for j in range(board_size[0])
+                       for i in range(board_size[1])
+                       if self[i,j] == piece['EMPTY']]
+
+    def isLose(self, forWhite):
+        runs = self.findRowsAndColumns(not forWhite) + self.findDiagonals(not forWhite)
+        for l in range(5,board_size[0]):
+            if l in runs: return True
+        return False
+
+    def isWin(self, forWhite):
+        runs = self.findRowsAndColumns(forWhite) + self.findDiagonals(forWhite)
+        for l in range(5,board_size[0]):
+            if l in runs: return True
+        return False
+
+
+class PenteAgent(object):
+    def __init__(self, color, depth=2):
+        self.depth = depth
+        self.color = True if color == 'WHITE' else False
+
+    def evaluationFunction(self, gameState):
         def length_to_score(l):
             return math.exp(l) if l < 5 else 4294967295.
-        color = piece['WHITE'] if forWhite else piece['BLACK']
-        playerRuns = self.findRowsAndColumns(forWhite) + self.findDiagonals(forWhite)
-        opponentRuns = self.findRowsAndColumns(not forWhite) + self.findDiagonals(not forWhite)
+        playerRuns = gameState.findRowsAndColumns(self.color) + gameState.findDiagonals(self.color)
+        opponentRuns = gameState.findRowsAndColumns(not self.color) + gameState.findDiagonals(not self.color)
         score = 0
         
         # There should never be normal game where both sides achieve a row of 5
@@ -141,34 +193,68 @@ class PenteState(object):
 
         return score
 
-    def isLegalAction(self, move):
-        return self.getGridValue(move[0], move[1]) == piece['EMPTY']
+    def getAction(self, gameState):
+        legalActions = gameState.getLegalActions()
+        # Don't bother searching minimax tree for first move
+        if len(legalActions) == board_size[0]*board_size[1]: return (4,4)
 
-    def getLegalActions(self):
-        # Dunno if this is worth implementing
-        return
+        actionList = []
+        self.beta = float('inf')
+        self.alpha = -float('inf')
+        for action in legalActions:
+            score = self.minimaxer(gameState.generateSuccessor(action),
+                                   not self.color,
+                                   self.depth)
+            actionList.append((score, action))
+        return max(actionList)[1]
+
+    def minimaxer(self, gameState, color, depth):
+        nextColor = not color
+        nextDepth = depth if nextColor != self.color else depth-1
+        if depth == 0 or gameState.isLose(self.color) or gameState.isWin(self.color):
+            score = self.evaluationFunction(gameState)
+            return score
+
+        minScore = float('inf')
+        maxScore = -float('inf')
+        for action in gameState.getLegalActions():
+            actionScore = self.minimaxer(gameState.generateSuccessor(action),
+                                         nextColor,
+                                         nextDepth)
+            if color == self.color:
+                maxScore = max(actionScore, maxScore)
+                if maxScore >= self.beta: return maxScore
+                self.alpha = max(self.alpha, maxScore)
+            else:
+                minScore = min(actionScore, minScore)
+                if minScore <= self.alpha: return minScore
+                self.beta = min(self.beta, minScore)
+
+        return maxScore if color == self.color else minScore
 
 
-class PenteAgent(object):
-    def __init__(self):
-        pass
 
 class PenteGame(object):
     def __init__(self):
         pass
 
-    def getSuccessorState(self, game_state, move):
-        assert game_state.getGridValue(move[0], move[1]) == piece['EMPTY'], \
-               "Illegal Successor State attempted: "+str(move)
-
-        newState = PenteState(captured=game_state.captured, 
-                              data=game_state.data, 
-                              whitesMove=not game_state.whitesMove)
-        newState.setGridValue(move[0], move[1], piece['WHITE'] if game_state.whitesMove else piece['BLACK'])
-        return newState
-
 def main():
-    pass
+    s = PenteState()
+    s[2,2] = piece['BLACK']
+    a = PenteAgent('WHITE')
+
+    while True:
+        print(s)
+        act = a.getAction(s)
+        print("")
+        print("AI takes: "+str(act))
+        print("")
+        s = s.generateSuccessor(act)
+        print(s)
+
+        break
+        # act = raw_input("--> ")
+        # s = s.generateSuccessor(eval(act))
 
 if __name__ == '__main__':
     main()
