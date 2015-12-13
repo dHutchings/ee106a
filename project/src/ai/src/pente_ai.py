@@ -252,9 +252,9 @@ def main():
         s = s.generateSuccessor(act)
         print(s)
 
-        break
-        # act = raw_input("--> ")
-        # s = s.generateSuccessor(eval(act))
+        # break
+        act = raw_input("--> ")
+        s = s.generateSuccessor(eval(act))
 
 if __name__ == '__main__':
     main()
