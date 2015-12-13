@@ -157,9 +157,6 @@ def init(mode='ROS'):
     right_gripper = baxter_interface.gripper.Gripper('right')
     left_gripper = baxter_interface.gripper.Gripper('left')
 
-    left_arm_str = 'left_arm'
-    right_arm_str = 'right_arm'
-
     print('Calibrating...')
     right_gripper.calibrate()
     left_gripper.calibrate()

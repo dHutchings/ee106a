@@ -58,6 +58,7 @@ def keyboard_ctrl():
     global trans
     global rot
 
+    print("We should be running now")
     screen = curses.initscr()
 
 
