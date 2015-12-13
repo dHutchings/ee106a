@@ -62,7 +62,8 @@ def move_to_coord(trans, rot, keep_oreint=False):
     goal.pose.position.x = trans[0]
     goal.pose.position.y = trans[1]
     goal.pose.position.z = trans[2]
-    
+
+
     # Orientation as a quaternion
     goal.pose.orientation.x = rot[0]
     goal.pose.orientation.y = rot[1]
@@ -190,7 +191,10 @@ def movment_handle(data):
         trans = data.trans
         move = True
     else:
-        move = False
+        move = True
+        #assume that i'm staying at the same location
+        loc = get_pose()
+        trans = loc['trans']
 
     if data.grip == 'True':
         gripper_status = False
@@ -236,6 +240,7 @@ def movment_handle(data):
         changeHeight = False
 
 
+    print "I am currently at " +str(get_pose())
 
 
     if move and incrimental:
@@ -243,7 +248,7 @@ def movment_handle(data):
         #print("changeHeight?" + str(changeHeight))
         incrimental_movement(trans,target_rbt,changeHeight = changeHeight, keep_oreint = keep_orient)
     elif move:
-        print("Absolute Movement to " + str(trans))
+        print("Absolute Movement to " + str(trans) + "rot " + str(rot))
         move_to_coord(trans,rot,keep_orient)
 
 

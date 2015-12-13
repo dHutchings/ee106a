@@ -89,6 +89,7 @@ def callback(data):
             #(omega,theta) = eqf.quaternion_to_exp(rot)
             #rbt = eqf.return_rbt(trans,rot)
 
+
             #print(rbt)
             #print("")
             #print("")
@@ -138,7 +139,8 @@ def closed_loop_pick(destination='othello_piece',):
     while True:
 
         execute = True
-        exit = raw_input("E to quit.  D for dist to target. B to break Otherwise, i'll move to 0 \n\r")
+        rotate = False
+        exit = raw_input("E to quit.  D for dist to target. B to break, R to rotate arm to best position, Otherwise, i'll move to 0 \n\r")
 
         if (exit == 'e') or (exit == 'E'):
             rospy.signal_shutdown("Shutdown signal recieved")
@@ -147,6 +149,8 @@ def closed_loop_pick(destination='othello_piece',):
             execute = False
         elif(exit == 'B') or (exit == 'b'):
             break 
+        elif(exit == 'R') or (exit == 'r'):
+            rotate = True
 
         try:
             #now = rospy.Time.now()
@@ -183,7 +187,62 @@ def closed_loop_pick(destination='othello_piece',):
 
                 retract = False
 
-                if trans[2] > 0.03:
+                if rotate:
+                    #rotate arm to best orientation for view
+                    trans_goal = None
+
+                    last_time = tf_listener.getLatestCommonTime('suction_cup','left_hand_camera')
+                    (trans_suc,rot_suc) = tf_listener.lookupTransform('suction_cup','left_hand_camera',last_time)
+
+                    last_time = tf_listener.getLatestCommonTime(homing_marker,destination)
+                    (trans_piece,rot_piece) = tf_listener.lookupTransform(homing_marker,destination,last_time)
+
+                    print("Suck")
+                    print trans_suc
+                    print('piece')
+                    print trans_piece
+
+                    #print rot_piece
+                    #omega_piece,theta_piece = eqf.quaternion_to_exp(rot_piece)
+                    euler_piece = tf.transformations.euler_from_quaternion(rot_piece)  #tf has euler -> quaternion conversions!
+
+                    print("Euler piece is")
+                    print(euler_piece)
+
+
+                    euler_suc = tf.transformations.euler_from_quaternion(rot_suc)  #tf has euler -> quaternion conversions!
+
+                    print("Euler piece is")
+                    print(euler_piece)
+
+                    #hypothesis
+                    #omega = 0,0,-1
+                    #theta = theta_piece - some theta for me.
+
+                    roll = np.pi
+                    pitch = 0
+                    yaw = 0
+
+                    '''
+                    #http://onlineconversion.vbulletin.net/forum/main-forums/convert-and-calculate/3249-euler-angle-quaternion
+                    qx = np.cos(roll/2)*np.cos(pitch/2)*np.cos(yaw/2)+np.sin(roll/2)*np.sin(pitch/2)*np.sin(yaw/2)
+                    qy = np.sin(roll/2)*np.cos(pitch/2)*np.cos(yaw/2)-np.cos(roll/2)*np.sin(pitch/2)*np.sin(yaw/2)
+                    qz = np.cos(roll/2)*np.sin(pitch/2)*np.cos(yaw/2)+np.sin(roll/2)*np.cos(pitch/2)*np.sin(yaw/2)
+                    qw = np.cos(roll/2)*np.cos(pitch/2)*np.sin(yaw/2)-np.sin(roll/2)*np.sin(pitch/2)*np.cos(yaw/2)
+
+                    q = [qx,qy,qz,qw]
+
+                    print("I decided to go to " + str(eqf.quaternion_to_exp(q)))
+
+                    rospy.wait_for_service('low_level_arm')
+                    movement_server = rospy.ServiceProxy('low_level_arm', kinematics_request)
+
+                    response = movement_server(trans=None,rot=q)
+                    '''
+                    continue
+
+
+                elif trans[2] > 0.03:
                     #i'm very high away, just get closer...
                     trans_goal = (.85*trans[0],.85*trans[1],trans[2]/2 + zoffset)
                     change_height = ''
