@@ -3,22 +3,20 @@ import sys
 import argparse
 import rospy
 import baxter_interface
-import Image, ImageDraw, ImageFont
+import tf
+from tf2_msgs.msg import TFMessage
 from std_msgs.msg import String
 from transitions import Machine
 from kinematics.srv import *
+from gridworld.srv import *
 
 global printstream
 
 check_launch = True
 is_quiet = False
 
-char_to_int = {'a':0, 'b':1, 'c':2, 'd':3,
-               'e':4, 'f':5, 'g':6, 'h':7}
 
 class PenteFSM(object):
-
-    originPoint = {'trans': [0.5, 0.5, 0.5], 'rot': [0., 0., 0., 0.]}
     nullCmd = ["None"]
 
     states = ['startup', 'standby', 'eval_board', 'mk_move',
@@ -39,7 +37,7 @@ class PenteFSM(object):
         {'trigger':'wait_for_player', 'source':'reset_pos', 'dest':'standby'},
     ]
 
-    def __init__(self, head):
+    def __init__(self, head, listener):
         self.machine = Machine(model=self,
                                states=PenteFSM.states,
                                transitions=PenteFSM.transitions,
@@ -47,6 +45,11 @@ class PenteFSM(object):
                                auto_transitions=True)
         self.command = self.nullCmd
         self.head = head
+
+        last_seen = listener.getLatestCommonTime('handoff_point', 'base')
+        self.originPoint = listener.getTransform('handoff_point', 'base', last_seen)
+        last_seen = listener.getLatestCommonTime('dropoff_point', 'base',)
+        self.dropoffPoint = listener.getTransform('dropoff_point', 'base', last_seen)
 
     def update_state(self):
         cmd = self.command[0]
@@ -81,6 +84,7 @@ class PenteFSM(object):
             self.mv_done()
             self.flush_cmd()
         else:
+            print_to_stream("cannot act on command: "+cmd)
             if not is_quiet:
                 print_to_stream(str(self.state))
 
@@ -95,55 +99,49 @@ class PenteFSM(object):
 
     def board_ready_cb(self):
         print_to_stream("Getting board state information")
+        result = self.boardGeometrySrv(request="GIMME YO INFO")
+        self.boardState = eval(result.board_state)
         self.nod_head()
 
-        boardStatemsg = boardGeometrySrv("GIMME YOUR INFO")
-        self.boardState = eval(boardStatemsg)
-
     def state_ready_cb(self):
-        pickupSquare = eval(self.command[1])
-        dropoffSquare = eval(self.command[2])
-        self.targetPoints = []
-        # Arm moves to high-y start point
-        self.targetPoints.append(('low_ng', self.originPoint))
+        pieces = {sq: self.boardState[sq] for sq in self.boardState 
+                                          if self.boardState[sq][1] != None}
 
-        # Arm uses closed loop control to go to pickup location
-        infoTuple = self.boardState[pickupSquare]
-        self.targetPoints.append(('high', infoTuple[1], infoTuple[2]))
+        for square, infoTuple in pieces.items():
+            # Arm moves to high-y start point
+            self.targetPoints.append(('low_ng', self.originPoint))
 
-        # Arm moves back to origin point
-        self.targetPoints.append(('low_wg', self.originPoint))
+            # Arm uses closed loop control to go to pickup location
+            self.targetPoints.append(('high', infoTuple[1], infoTuple[2]))
 
-        # Arm uses closed loop control to go to dropoff location
-        infoTuple = self.boardState[dropoffSquare]
-        self.targetPoints.append(('high', infoTuple[1], infoTuple[2]))
+            # Arm moves back to origin point
+            self.targetPoints.append(('low_wg', self.originPoint))
+
+            # Arm uses open loop control to go to dropoff location
+            self.targetPoints.append(('low_wg', self.dropoff_point))
 
     def mv_ready_cb(self):
         for inst in self.targetPoints:
             if inst[0] == 'low_ng':
-                result = lowLevelSrv(target_rans=inst[1]['trans'], target_rot=inst[1]['rot'], 
+                result = self.lowLevelSrv(trans=inst[1]['trans'], rot=inst[1]['rot'], 
                                      grip='False', keep_orient='False')
             elif inst[0] == 'low_wg':
-                result = lowLevelSrv(target_rans=inst[1]['trans'], target_rot=inst[1]['rot'], 
+                result = self.lowLevelSrv(trans=inst[1]['trans'], rot=inst[1]['rot'], 
                                      grip='True', keep_orient='False')
             elif inst[0] == 'high':
-                result = closedLoopSrv(inst[1], inst[2], "pick")
+                result = self.closedLoopSrv(inst[1], inst[2], "pick")
 
             # if result != True:
             #     print_to_stream("FAILED INSTRUCTION: "+str(inst))
             #     self.to_error()
 
     def mv_done_cb(self):
-        result = lowLevelSrv()
+        result = self.lowLevelSrv()
         # if result != True:
         #     print_to_stream("FAILED INSTRUCTION: <return to standy position>")
         #     self.to_error()
         self.nod_head()
         self.to_standby()
-
-    def print_to_head(self):
-        boardstr = printBoard(self.boardState)
-        # This is really complicated :(
 
     def nod_head(self):
         self.head.command_nod()
@@ -158,18 +156,8 @@ class PenteFSM(object):
 
 def print_to_stream(statement):
     global printstream
-
     printstream.publish(data=statement)
 
-def getBoardRBT(board, location):
-    return location
-
-def printBoard(board):
-    arr = [[[] for j in range(8)] for i in range(8)]
-    for char, num in board.keys():
-        if char in char_to_int:
-            arr[char_to_int[char]][num] = board[(char, num)][0]
-    return arr
 
 def main():
     global printstream
@@ -177,9 +165,11 @@ def main():
     print("Initializing node...")
     rospy.init_node("pente_ctrl")
     r = rospy.Rate(10)
-
+    
+    print("Initializing FSM...")
+    l = tf.TransformListener()
     h = baxter_interface.Head()
-    fsm = PenteFSM(head=h)
+    fsm = PenteFSM(head=h, listener=l)
     
     print("Initializing status feed...")
     printstream = rospy.Publisher('/pente_ctrl/status', String, queue_size=10)
@@ -195,13 +185,13 @@ def main():
     rospy.wait_for_service("low_level_arm")
     lowLevelSrv = rospy.ServiceProxy('low_level_arm', kinematics_request)
 
-    # print("Connecting to board geometry service...")
-    # rospy.wait_for_service("board_geometry")
-    # boardGeometrySrv = rospy.ServiceProxy('board_geometry')
+    print("Connecting to board geometry service...")
+    rospy.wait_for_service("board_geometry")
+    boardGeometrySrv = rospy.ServiceProxy('board_state', board_state)
 
-    # print("Initializing head_image feed...")
-    # headImg = rospy.Publisher('pente_ctrl/head_image', image)
-
+    fsm.closedLoopSrv = closedLoopSrv
+    fsm.lowLevelSrv = lowLevelSrv
+    fsm.boardGeometrySrv = boardGeometrySrv
 
     print("Use pente_ctrl/keyboard topic to interface with pente_ctrl.")
     print("Echo pente_ctrl/status topic to view debug info.")
@@ -214,15 +204,15 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="The One Pente Controller to rule them all.")
-    parser.add_argument('-f', '--force', help="start pente_ctrl without running launch checks.",
-                                         action='store_true')
-    parser.add_argument('-q', '--quiet', help="disable print statements",
-                                          action='store_true')
-    args = parser.parse_args()
-    if args.force:
-        check_launch = False
-    if args.quiet:
-        is_quiet = True
+    # parser = argparse.ArgumentParser(description="The One Pente Controller to rule them all.")
+    # parser.add_argument('-f', '--force', help="start pente_ctrl without running launch checks.",
+    #                                      action='store_true')
+    # parser.add_argument('-q', '--quiet', help="disable print statements",
+    #                                       action='store_true')
+    # args = parser.parse_args()
+    # if args.force:
+    #     check_launch = False
+    # if args.quiet:
+    #     is_quiet = True
 
     main()
