@@ -1,6 +1,10 @@
+#!/usr/bin/env python
+
 import curses
 import signal
 import sys
+import time
+
 stdscr = curses.initscr()
 #curses.cbreak()
 #stdscr.keypad(1)
@@ -21,8 +25,16 @@ signal.signal(signal.SIGINT, signal_handler)
 #signal.pause()
 
 key = ''
-while key != ord('q'):
+string = "foo"
+while True:
     key = stdscr.getch()
+
+    if string is "foo":
+        string = "FOO"
+    else:
+        string = "foo"
+
+    stdscr.addstr(1,10,string)
     stdscr.addch(20,25,key)
     stdscr.refresh()
     if key == curses.KEY_UP: 
@@ -30,4 +42,7 @@ while key != ord('q'):
     elif key == curses.KEY_DOWN: 
         stdscr.addstr(3, 20, "Down")
 
-curses.endwin()
+    time.sleep(0.25)
+
+
+
