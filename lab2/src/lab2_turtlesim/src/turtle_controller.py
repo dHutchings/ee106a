@@ -10,7 +10,21 @@ import rospy
 #Import topic to run the turtle
 from geometry_msgs.msg import Twist
 import sys
+import curses
+import signal
+import time
 
+stdscr = curses.initscr()
+curses.cbreak()
+stdscr.keypad(1) #enables keypad
+stdscr.nodelay(1) #non-blocking!
+#stdscr.timeout(1)
+
+def signal_handler(signal, frame):
+        print('You pressed Ctrl+C!')
+        curses.endwin()
+        print("Done")
+        sys.exit(0)
 
 turtleToControl = 'turtle1'
 
@@ -33,43 +47,51 @@ def talker():
   r = rospy.Rate(10) # 10hz
 
   oldTwist = Twist() 
-
+  key = ''
+  string = "foo"
   # Loop until the node is killed with Ctrl-C
   while not rospy.is_shutdown():
-    print("CMDS are WSADQE, w fwd, S back, A strafe right, B strafe left, Q rotate left, E rotate right")
-    s = raw_input('-->')
-    
-    
-    # Construct a string that we want to publish
-    #pub_string = "hello world %s"%rospy.get_time()
-    
-    #using instructions on "Moving the base" of :mini_max" turotiral of ros.org
+    #print("CMDS are WSADQE, w fwd, S back, A strafe right, B strafe left, Q rotate left, E rotate right")
+    #s = raw_input('-->')
 
-    twist = Twist()
-    print("Command was " + s)
-    if s == 'w':
-        twist.linear.x = oldTwist.linear.x + 1
-    elif s == 's':
-        twist.linear.x = oldTwist.linear.x - 1
+    if string is "foo":
+        string = "FOO"
     else:
+        string = "foo"
+    stdscr.addstr(1,10,string)
+    #heartbeat
+
+    twist = oldTwist
+
+    key = stdscr.getch() #returns -1 for no character
+
+    if key is not -1:
+        stdscr.addch(20,25,key)
+        stdscr.refresh()
         twist.linear.x = oldTwist.linear.x
+        if key == curses.KEY_UP: 
+            stdscr.addstr(2, 20, "Up")
+            twist.linear.x = oldTwist.linear.x + 1
+        else:
+            stdscr.addstr(2,20, "  ")
+        if key == curses.KEY_DOWN: 
+            stdscr.addstr(3, 20, "Down")
+            twist.linear.x = oldTwist.linear.x - 1
+        else:
+            stdscr.addstr(3,20,"    ")
 
-    #lateral doesn't seem to work fore the tiome being
-    if s == 'a':
-        twist.linear.y = oldTwist.linear.y - 1
-    elif s == 'd':
-        twist.linear.y = oldTwist.linear.y + 1
-    else:
-        twist.linear.y = oldTwist.linear.y
+        if key == curses.KEY_LEFT: 
+            stdscr.addstr(4, 20, "Left")
+            twist.angular.z = oldTwist.angular.z + 1
+        else:
+            stdscr.addstr(4,20, "    ")
+        if key == curses.KEY_RIGHT: 
+            stdscr.addstr(5, 20, "Right")
+            twist.angular.z = oldTwist.angular.z - 1
+        else:
+            stdscr.addstr(5,20,"      ")
 
-    if s == 'q':
-        twist.angular.z = oldTwist.angular.z + 1
-    elif s == 'e':
-        twist.angular.z = oldTwist.angular.z - 1
-    else:
-        twist.angular.z = oldTwist.angular.z
-
-
+    
     oldTwist = twist
 
     twist.linear.z = 0  #should always be zero, we're not levitating
@@ -91,6 +113,9 @@ if __name__ == '__main__':
     print("New Turtle, it's name is "+ sys.argv[1])
     turtleToControl = sys.argv[1]
   try:
+    stdscr.addstr(0,10,"Use ctrl-c to quit")
+    stdscr.refresh()
+    signal.signal(signal.SIGINT, signal_handler)
     talker()
   except rospy.ROSInterruptException: pass
   
