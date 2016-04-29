@@ -1,10 +1,24 @@
 import curses
+import signal
+import sys
 stdscr = curses.initscr()
-curses.cbreak()
+#curses.cbreak()
 #stdscr.keypad(1)
+stdscr.nodelay(1) #non-blocking!
 
-stdscr.addstr(0,10,"Hit 'q' to quit")
+def signal_handler(signal, frame):
+        print('You pressed Ctrl+C!')
+        curses.endwin()
+        print("Done")
+        sys.exit(0)
+
+
+
+stdscr.addstr(0,10,"Use ctrl-c to quit")
 stdscr.refresh()
+
+signal.signal(signal.SIGINT, signal_handler)
+#signal.pause()
 
 key = ''
 while key != ord('q'):
