@@ -6,9 +6,11 @@ import sys
 import time
 
 stdscr = curses.initscr()
-#curses.cbreak()
-#stdscr.keypad(1)
+curses.cbreak()
+stdscr.keypad(1) #enables keypad
 stdscr.nodelay(1) #non-blocking!
+
+#stdscr.timeout(1)
 
 def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
@@ -27,20 +29,27 @@ signal.signal(signal.SIGINT, signal_handler)
 key = ''
 string = "foo"
 while True:
-    key = stdscr.getch()
 
     if string is "foo":
         string = "FOO"
     else:
         string = "foo"
-
     stdscr.addstr(1,10,string)
-    stdscr.addch(20,25,key)
-    stdscr.refresh()
-    if key == curses.KEY_UP: 
-        stdscr.addstr(2, 20, "Up")
-    elif key == curses.KEY_DOWN: 
-        stdscr.addstr(3, 20, "Down")
+    #heartbeat
+
+    key = stdscr.getch() #returns -1 for no character
+
+    if key is not -1:
+        stdscr.addch(20,25,key)
+        stdscr.refresh()
+        if key == curses.KEY_UP: 
+            stdscr.addstr(2, 20, "Up")
+        else:
+            stdscr.addstr(2,20, "  ")
+        if key == curses.KEY_DOWN: 
+            stdscr.addstr(3, 20, "Down")
+        else:
+            stdscr.addstr(3,20,"    ")
 
     time.sleep(0.25)
 
