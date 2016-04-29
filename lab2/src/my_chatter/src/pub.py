@@ -35,10 +35,19 @@ def talker():
     
     # Construct an array that we want to publish
     #include s
-    data = [s , rospy.get_time()]
+    #data = [s , rospy.get_time()]
     
-    # Publish our data to the 'chatter_talk' topic
-    pub.publish(s,rospy.get_time())
+    #explicit way to instantiate a message
+    data = TimestampString()
+    #fill each data type
+    data.userInput = s
+    data.timestamp = rospy.get_time()
+
+    pub.publish(data)
+
+    # One way to Publish our data to the 'chatter_talk' topic
+    # uses implicit type definitions to get the message right.
+    # pub.publish(s,rospy.get_time())
     
     # Use our rate object to sleep until it is time to publish again
     r.sleep()
